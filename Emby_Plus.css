@@ -1,0 +1,2380 @@
+/* ================================================================
+   Emby_Plus 精简版样式
+   - 仅包含：全局重置 / 首页顶栏透明与居中 / 胶卷开屏加载 / 首页大图轮播 / 大图元数据徽章 / 卡片悬浮光效 / 基础骨架屏
+   - 其余详情页、集页面、播放器、日历、榜单、MoviePilot 等样式均随对应 Addon 动态注入
+   ================================================================ */
+
+
+/* 基础重置 */
+html, body, .view, .mainAnimatedPages, .skinBody {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+}
+
+/* 隐藏 Emby 原生开屏 Splash 闪屏 */
+.app-splash-container,
+.app-splash {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+/* 顶栏：任何状态下都保持完全透明（无黑底、无磨砂），彻底消除割裂感 */
+.skinHeader,
+.skinHeader.headerTop,
+.skinHeader.skinHeader-withBackground,
+.skinHeader.headroom-scrolling,
+.skinHeader.semiTransparent,
+.skinHeader.headroom-scrolling::before {
+    width: 100% !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+}
+
+/* 顶部内边距处理 */
+.scrollSlider.has-cinema-banner,
+.scrollSlider:has(.cinema-banner),
+.has-cinema-banner .scrollSlider {
+    padding-top: 0 !important;
+}
+
+
+.headerTop-withSectionTabs .headerTabs.sectionTabs {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
+/* 顶栏 Tab 居中展示，完全遵循 Emby 原生顶部 safe-area 与间距 */
+/* 桌面端：强制设置弹性顺序 order: 1, 2, 3，两端对称宽 240px，中间 Tab 实现绝对 0 像素物理居中 */
+@media all and (min-width: 66em) {
+    .headerTop-withSectionTabs {
+        flex-wrap: nowrap !important;
+    }
+
+    .headerTop-withSectionTabs .headerLeft {
+        order: 1 !important;
+        flex: 0 0 240px !important;
+        width: 240px !important;
+        max-width: 240px !important;
+    }
+
+    .headerTop-withSectionTabs .headerMiddle.sectionTabs {
+        order: 2 !important;
+        flex: 1 1 auto !important;
+        width: auto !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        margin: 0 auto !important;
+    }
+
+    .headerTop-withSectionTabs .headerMiddle .emby-tabs {
+        margin: 0 auto !important;
+    }
+
+    .headerTop-withSectionTabs .headerRight {
+        order: 3 !important;
+        flex: 0 0 240px !important;
+        width: 240px !important;
+        max-width: 240px !important;
+        margin-left: auto !important;
+    }
+}
+
+/* 移除黑色胶囊外框与阴影，实现通透自然排版 */
+.headerMiddle .emby-tabs,
+.headerTabs .emby-tabs {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+/* 隐藏原生下划线滑动指示器 */
+.headerMiddle .emby-tabs-slider,
+.headerTabs .emby-tabs-slider {
+    border-bottom: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+}
+
+/* Tab 按钮基础态：干净轻灵字体，通透无杂质 */
+.headerMiddle button.emby-tab-button,
+.headerTabs button.emby-tab-button {
+    border-radius: 9999px !important;
+    padding: 6px 10px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: rgba(255, 255, 255, 0.65) !important;
+    background: transparent !important;
+    border: none !important;
+    margin: 0 1px !important;
+    min-width: 0 !important;
+    min-height: unset !important;
+    height: auto !important;
+    line-height: 1.4 !important;
+    letter-spacing: 0.3px !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.headerMiddle button.emby-tab-button:hover,
+.headerTabs button.emby-tab-button:hover {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 激活态 Tab 按钮：极简轻透柔光胶囊微高亮，自然融入顶栏背景 */
+.headerMiddle button.emby-tab-button.emby-tab-button-active,
+.headerTabs button.emby-tab-button.emby-tab-button-active {
+    background: rgba(255, 255, 255, 0.16) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ================================================================
+   模块 03：电影院动态胶卷开屏加载动画
+   - 纯正复古金色胶卷匀速旋转动效
+   - 极简电影院片头与呼吸微光
+   ================================================================ */
+.cinema-loading-screen {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle at 50% 45%, #161b24 0%, #0c0e14 70%, #050608 100%) !important;
+    z-index: 999999999 !important;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    pointer-events: all;
+    overflow: hidden;
+    transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1), filter 0.55s ease, transform 0.55s ease !important;
+}
+
+.cinema-loading-screen.fade-out {
+    opacity: 0 !important;
+    filter: blur(12px) !important;
+    transform: scale(1.04) !important;
+    pointer-events: none !important;
+}
+
+/* 胶卷放映机走带组合容器 */
+.cinema-film-strip-machine {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.cinema-reels-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.cinema-film-reel.main-reel {
+    width: 52px;
+    height: 52px;
+    filter: drop-shadow(0 0 14px rgba(212, 175, 55, 0.45));
+    animation: cinemaFilmReelSpin 3.5s linear infinite !important;
+}
+
+.cinema-film-reel.sub-reel {
+    width: 38px;
+    height: 38px;
+    opacity: 0.85;
+    filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.35));
+    animation: cinemaFilmReelSpinRev 2.8s linear infinite !important;
+}
+
+@keyframes cinemaFilmReelSpin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes cinemaFilmReelSpinRev {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(-360deg);
+    }
+}
+
+/* 35mm 胶卷走带轨道窗口 (带边缘虚化消隐) */
+.cinema-filmstrip-track {
+    width: 140px;
+    height: 22px;
+    overflow: hidden;
+    position: relative;
+    border-top: 1px solid rgba(212, 175, 55, 0.45);
+    border-bottom: 1px solid rgba(212, 175, 55, 0.45);
+    background: rgba(12, 14, 20, 0.85);
+    border-radius: 2px;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 15%, #000 85%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 15%, #000 85%, transparent 100%);
+}
+
+/* 无缝滚动的胶片条 (带真实上下齿孔与画格) */
+.cinema-filmstrip-roller {
+    display: flex;
+    width: max-content;
+    height: 100%;
+    animation: cinemaFilmStripRun 1.2s linear infinite !important;
+}
+
+@keyframes cinemaFilmStripRun {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-48px);
+    }
+}
+
+/* 单个胶卷画格 (宽24px，上下各有1个精密齿孔，中间是微光底片框) */
+.cinema-filmstrip-segment {
+    width: 24px;
+    height: 100%;
+    flex-shrink: 0;
+    position: relative;
+    box-sizing: border-box;
+    border-right: 1px solid rgba(212, 175, 55, 0.25);
+}
+
+/* 顶部齿孔 */
+.cinema-filmstrip-segment::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 8px;
+    width: 7px;
+    height: 4px;
+    background: #d4af37;
+    border-radius: 1px;
+    box-shadow: 0 0 4px rgba(212, 175, 55, 0.6);
+}
+
+/* 底部齿孔 */
+.cinema-filmstrip-segment::after {
+    content: "";
+    position: absolute;
+    bottom: 2px;
+    left: 8px;
+    width: 7px;
+    height: 4px;
+    background: #d4af37;
+    border-radius: 1px;
+    box-shadow: 0 0 4px rgba(212, 175, 55, 0.6);
+}
+
+.cinema-film-strip-glow {
+    position: absolute;
+    width: 140px;
+    height: 90px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(212, 175, 55, 0.16) 0%, transparent 70%);
+    animation: cinemaReelPulse 2.5s ease-in-out infinite alternate;
+    pointer-events: none;
+}
+
+@keyframes cinemaReelPulse {
+    0% {
+        transform: scale(0.9);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+}
+
+.cinema-loading-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.cinema-loading-title {
+    margin: 0 0 1rem 0 !important;
+    font-size: clamp(2.2rem, 4.8vw, 3.8rem) !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.22em !important;
+    text-transform: uppercase !important;
+    background: linear-gradient(135deg, #ffffff 0%, #fae19c 45%, #d4af37 80%, #aa820a 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    text-shadow: 0 0 35px rgba(212, 175, 55, 0.35) !important;
+    text-align: center !important;
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+    transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.8s ease;
+}
+
+.cinema-loading-title.active {
+    opacity: 1 !important;
+    transform: translateY(0) scale(1) !important;
+}
+
+.cinema-loading-line {
+    width: 120px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, #d4af37 50%, transparent 100%);
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.6);
+    margin-bottom: 1rem;
+    animation: cinemaLineGlow 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes cinemaLineGlow {
+    0% {
+        width: 80px;
+        opacity: 0.5;
+    }
+    100% {
+        width: 150px;
+        opacity: 1;
+    }
+}
+
+.cinema-loading-subtitle {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.35em !important;
+    color: rgba(255, 255, 255, 0.5) !important;
+    text-transform: uppercase !important;
+}
+
+/* ================================================================
+   横幅大图平滑稳定显示规范 (彻底消除加载完成后的二次闪烁与黑屏冲击)
+   ================================================================ */
+.cinema-banner {
+    position: relative;
+    width: 100%;
+    user-select: none !important;
+    box-sizing: border-box !important;
+    background: transparent !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+}
+
+.cinema-banner.cinema-giant-revealing,
+.cinema-banner.cinema-giant-revealed {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+    animation: none !important;
+}
+
+/* 背景海报大图持续电影慢呼吸感动效 (14秒柔顺缓动交替) */
+.cinema-banner.cinema-giant-revealed .cinema-slide.active .cinema-backdrop-img {
+    animation: cinemaPosterBreath 14s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate !important;
+}
+
+@keyframes cinemaPosterBreath {
+    0% {
+        transform: scale(1) translate3d(0, 0, 0);
+        filter: brightness(1) contrast(1);
+    }
+    50% {
+        transform: scale(1.035) translate3d(-0.6%, -0.4%, 0);
+        filter: brightness(1.04) contrast(1.02);
+    }
+    100% {
+        transform: scale(1.055) translate3d(0.6%, 0.4%, 0);
+        filter: brightness(1.07) contrast(1.03);
+    }
+}
+
+/* 动态内容图层流式滑入与微动效 */
+.cinema-banner.cinema-giant-revealed .cinema-title-logo-wrap,
+.cinema-banner.cinema-giant-revealed .cinema-title {
+    animation: cinemaFlowIn 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both !important;
+}
+
+.cinema-banner.cinema-giant-revealed .cinema-meta-row {
+    animation: cinemaFlowIn 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both !important;
+}
+
+.cinema-banner.cinema-giant-revealed .cinema-overview {
+    animation: cinemaFlowIn 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both !important;
+}
+
+.cinema-banner.cinema-giant-revealed .cinema-actions {
+    animation: cinemaFlowIn 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both !important;
+}
+
+@keyframes cinemaFlowIn {
+    0% {
+        opacity: 0;
+        transform: translateY(22px) scale(0.97);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 立即播放按钮微光呼吸感脉动 */
+.cinema-banner.cinema-giant-revealed .cinema-btn-play {
+    animation: cinemaPlayGlowBreath 3.5s ease-in-out infinite alternate !important;
+}
+
+@keyframes cinemaPlayGlowBreath {
+    0% {
+        box-shadow: 0 4px 14px rgba(0, 164, 220, 0.3);
+        border-color: rgba(255, 255, 255, 0.8);
+    }
+    100% {
+        box-shadow: 0 6px 24px rgba(0, 164, 220, 0.65), 0 0 14px rgba(255, 255, 255, 0.4);
+        border-color: #ffffff;
+    }
+}
+
+.cinema-giant-revealed .cinema-info-layer {
+    animation: cinemaInfoAscend 1.0s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes cinemaInfoAscend {
+    0% {
+        opacity: 0;
+        transform: translateY(28px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.cinema-giant-revealed .cinema-thumb-card {
+    animation: cinemaCardFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.cinema-giant-revealed .cinema-thumb-card:nth-child(1) {
+    animation-delay: 0.10s;
+}
+
+.cinema-giant-revealed .cinema-thumb-card:nth-child(2) {
+    animation-delay: 0.16s;
+}
+
+.cinema-giant-revealed .cinema-thumb-card:nth-child(3) {
+    animation-delay: 0.22s;
+}
+
+.cinema-giant-revealed .cinema-thumb-card:nth-child(4) {
+    animation-delay: 0.28s;
+}
+
+.cinema-giant-revealed .cinema-thumb-card:nth-child(5) {
+    animation-delay: 0.34s;
+}
+
+.cinema-giant-revealed .cinema-thumb-card:nth-child(6) {
+    animation-delay: 0.40s;
+}
+
+.cinema-giant-revealed .cinema-thumb-card:nth-child(7) {
+    animation-delay: 0.46s;
+}
+
+.cinema-giant-revealed .cinema-thumb-card:nth-child(8) {
+    animation-delay: 0.52s;
+}
+
+@keyframes cinemaCardFadeIn {
+    0% {
+        opacity: 0;
+        transform: translateX(24px) scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+/* 海报横幅核心组件 */
+.cinema-banner {
+    position: relative;
+    width: 100%;
+    user-select: none !important;
+    box-sizing: border-box !important;
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+.cinema-slides {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+/* 幻灯片基础状态：初始透明与隐藏，启用优雅平滑淡入淡出 */
+.cinema-slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: 1;
+    transform: scale(1);
+    transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.8s ease, transform 0.8s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* 上一张退场幻灯片：平滑淡出交叉溶解，微量外展 */
+.cinema-slide.cinema-slide-prev {
+    opacity: 0 !important;
+    visibility: visible !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+    transform: scale(1.02) !important;
+    transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1), transform 0.8s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+.cinema-slide.cinema-slide-prev .cinema-content {
+    opacity: 0 !important;
+    transform: translateY(6px);
+    transition: opacity 0.35s ease, transform 0.35s ease !important;
+}
+
+/* 激活幻灯片入场：平滑淡入交叉溶解，无缝接管大屏 */
+.cinema-slide.active {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    z-index: 2 !important;
+    transform: scale(1) !important;
+    transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1), transform 0.8s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* 底端羽化消隐 */
+.cinema-backdrop-wrap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom,
+    #000000 0%,
+    #000000 80%,
+    rgba(0, 0, 0, 0.82) 88%,
+    rgba(0, 0, 0, 0.4) 95%,
+    transparent 100%);
+    mask-image: linear-gradient(to bottom,
+    #000000 0%,
+    #000000 80%,
+    rgba(0, 0, 0, 0.82) 88%,
+    rgba(0, 0, 0, 0.4) 95%,
+    transparent 100%);
+}
+
+/* 背景大图慢速推镜 (Ken Burns 电影级平滑推拉运镜) */
+.cinema-backdrop-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 25%;
+    transform-origin: center center !important;
+    will-change: transform !important;
+}
+
+/* 背景大图电影级慢推呼吸运镜 (持续 16 秒缓动交替呼吸，永不冻结) */
+.cinema-slide.active .cinema-backdrop-img {
+    animation: cinemaBackdropLivingBreath 16s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate !important;
+}
+
+@keyframes cinemaBackdropLivingBreath {
+    0% {
+        transform: scale(1.0) translate3d(0, 0, 0);
+        filter: brightness(1.0) contrast(1.0);
+    }
+    50% {
+        transform: scale(1.045) translate3d(-0.6%, -0.4%, 0);
+        filter: brightness(1.04) contrast(1.02);
+    }
+    100% {
+        transform: scale(1.075) translate3d(0.6%, 0.4%, 0);
+        filter: brightness(1.07) contrast(1.03);
+    }
+}
+
+/* 切换时文字、徽章与按钮层次错落流式滑入 (Staggered Dynamic Flow) */
+.cinema-slide.active .cinema-logo,
+.cinema-slide.active .cinema-title {
+    animation: cinemaSlideTitleIn 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.cinema-slide.active .cinema-meta-row {
+    animation: cinemaSlideMetaIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+}
+
+.cinema-slide.active .cinema-overview {
+    animation: cinemaSlideTextIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both;
+}
+
+.cinema-slide.active .cinema-btn-group,
+.cinema-slide.active .cinema-actions {
+    animation: cinemaSlideBtnIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both;
+}
+
+@keyframes cinemaSlideTitleIn {
+    0% {
+        opacity: 0;
+        transform: translateY(26px) scale(0.97);
+        filter: blur(6px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0px);
+    }
+}
+
+@keyframes cinemaSlideMetaIn {
+    0% {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes cinemaSlideTextIn {
+    0% {
+        opacity: 0;
+        transform: translateY(18px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes cinemaSlideBtnIn {
+    0% {
+        opacity: 0;
+        transform: translateY(16px) scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 文字保护渐变 */
+.cinema-backdrop-gradient {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+    rgba(10, 12, 16, 0.94) 0%,
+    rgba(10, 12, 16, 0.82) 22%,
+    rgba(10, 12, 16, 0.48) 45%,
+    rgba(10, 12, 16, 0.15) 70%,
+    transparent 100%),
+    linear-gradient(0deg,
+            transparent 0%,
+            rgba(10, 12, 16, 0.45) 45px,
+            rgba(10, 12, 16, 0.82) 130px,
+            rgba(10, 12, 16, 0.5) 220px,
+            transparent 320px),
+    linear-gradient(180deg,
+            rgba(0, 0, 0, 0.65) 0%,
+            transparent 20%) !important;
+}
+
+.cinema-tag {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #f5a623;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.cinema-title {
+    font-size: clamp(26px, 3.8vw, 44px);
+    font-weight: 900;
+    line-height: 1.12;
+    color: #ffffff;
+    margin-bottom: 8px;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.85);
+    max-width: 96%;
+    word-break: break-word;
+}
+
+.cinema-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px 10px;
+    margin-bottom: 10px;
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 12.5px;
+    font-weight: 500;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.cinema-meta-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cinema-star {
+    color: #f5a623;
+    font-size: 12px;
+}
+
+.cinema-dot {
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 10px;
+}
+
+.cinema-genre-list {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cinema-genre-badge {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 1.5px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+}
+
+.cinema-ep-badge,
+.cinema-size-badge {
+    background: rgba(0, 209, 178, 0.14);
+    border: 1px solid rgba(0, 209, 178, 0.28);
+    color: #00d1b2;
+    padding: 1.5px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.cinema-overview {
+    font-size: 13px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.72);
+    max-width: 680px;
+    margin-bottom: 14px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.cinema-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.cinema-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 42px;
+    padding: 0 20px;
+    border-radius: 21px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-sizing: border-box;
+    user-select: none;
+}
+
+.cinema-btn .cinema-icon {
+    width: 17px;
+    height: 17px;
+}
+
+/* 立即播放按钮：流线型高级科技微光呼吸脉冲与动态光斑 */
+.cinema-btn-play {
+    position: relative !important;
+    background: #ffffff !important;
+    color: #121316 !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45) !important;
+    animation: cinemaPlayBtnBreathPulse 4s ease-in-out infinite alternate !important;
+    overflow: hidden !important;
+}
+
+/* 按钮内部优雅微光扫过动效 */
+.cinema-btn-play::after {
+    content: "" !important;
+    position: absolute !important;
+    top: -50% !important;
+    left: -60% !important;
+    width: 40% !important;
+    height: 200% !important;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 50%, transparent 100%) !important;
+    transform: rotate(25deg) !important;
+    animation: cinemaBtnLightSheen 5s ease-in-out infinite !important;
+    pointer-events: none !important;
+}
+
+@keyframes cinemaBtnLightSheen {
+    0%, 30% {
+        transform: translateX(-150%) rotate(25deg);
+        opacity: 0;
+    }
+    50% {
+        opacity: 0.85;
+    }
+    70%, 100% {
+        transform: translateX(350%) rotate(25deg);
+        opacity: 0;
+    }
+}
+
+@keyframes cinemaPlayBtnBreathPulse {
+    0% {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 6px 22px rgba(255, 255, 255, 0.35), 0 0 16px rgba(0, 164, 220, 0.35);
+        transform: scale(1.02);
+    }
+    100% {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+        transform: scale(1);
+    }
+}
+
+.cinema-btn-play:hover {
+    background: #e5a00d !important;
+    color: #ffffff !important;
+    transform: scale(1.05) !important;
+    box-shadow: 0 8px 24px rgba(229, 160, 13, 0.55), 0 0 16px rgba(255, 255, 255, 0.3) !important;
+}
+
+.cinema-btn-play:active {
+    transform: scale(0.97) !important;
+}
+
+/* 查看详情按钮：透光毛玻璃呼吸微光 */
+.cinema-btn-detail {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.26) !important;
+    animation: cinemaDetailBorderBreathe 4s ease-in-out infinite alternate !important;
+}
+
+@keyframes cinemaDetailBorderBreathe {
+    0% {
+        border-color: rgba(255, 255, 255, 0.22);
+        background: rgba(255, 255, 255, 0.14);
+    }
+    100% {
+        border-color: rgba(255, 255, 255, 0.42);
+        background: rgba(255, 255, 255, 0.22);
+    }
+}
+
+.cinema-btn-detail:hover {
+    background: rgba(255, 255, 255, 0.28) !important;
+    border-color: rgba(255, 255, 255, 0.5) !important;
+    transform: scale(1.05) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+.cinema-btn-detail:active {
+    transform: scale(0.97) !important;
+}
+
+.cinema-title-logo-wrap {
+    margin-bottom: 10px;
+    max-width: 320px;
+    max-height: 96px;
+    display: flex;
+    align-items: flex-start;
+}
+
+.cinema-title-logo {
+    max-width: 100%;
+    max-height: 96px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.85));
+}
+
+.cinema-thumb-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+    z-index: 10;
+}
+
+.cinema-thumb-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: #ffffff !important;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.85) !important;
+    border-radius: 2px;
+}
+
+/* 我的媒体布局 */
+.section0 .padded-top-focusscale.padded-bottom-focusscale {
+    position: relative !important;
+    bottom: auto !important;
+    width: 100% !important;
+    padding-top: 4px !important;
+    padding-bottom: 0 !important;
+    box-sizing: border-box !important;
+}
+
+/* “我的媒体”（Section 0）：独立版块，居于大图下方规整平铺（与下方继续观看完全对齐） */
+.view:not(.hide) .section0 {
+    position: relative !important;
+    z-index: 2 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin-top: 1.2rem !important; /* 清晰、规整的独立版块间距，完全独立于大图之外 */
+    margin-bottom: 1.5rem !important;
+    overflow: visible !important;
+    display: block !important;
+    clear: both !important;
+}
+
+.view:not(.hide) .section0 .itemsContainer-finepointerwrap {
+    flex-wrap: initial !important;
+    -webkit-flex-wrap: initial !important;
+}
+
+.view:not(.hide) .section0 .cardText {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 0 !important;
+    background-color: rgba(0, 0, 0, 0.55);
+    font-weight: bolder;
+    font-size: larger;
+    border-radius: var(--cardbox-radius, 8px);
+    transition: 0.25s ease;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.view:not(.hide) .section0 .card:hover .cardText {
+    opacity: 1;
+}
+
+.view:not(.hide) .section0 .cardText button {
+    text-decoration: none;
+    width: 100%;
+    text-align: center;
+    color: #ffffff !important;
+}
+
+.view:not(.hide) .section0 .cardOverlayContainer {
+    background: none;
+}
+
+.view:not(.hide) .section0 .cardOverlayContainer label,
+.view:not(.hide) .section0 .sectionTitleContainer,
+.view:not(.hide) .section0 .sectionTitle {
+    display: none !important;
+}
+
+.view:not(.hide) .section0 .cardBox-touchzoom {
+    box-shadow: 0 8px 10px rgba(0, 0, 0, 0.15);
+}
+
+.view:not(.hide) .section0 .card {
+    transition: transform 0.35s cubic-bezier(0, 1.75, 0.25, 1), opacity 0.5s ease;
+}
+
+.view:not(.hide) .section0 .card:hover {
+    transform: scale(1.08) !important;
+    z-index: 10 !important;
+}
+
+/* “我的媒体”（Section 0）：桌面端允许原生滚动按钮正常显现 */
+/* 桌面端响应式 */
+@media (min-width: 1024px) {
+    /* 电脑端首页大图首屏适配 */
+    /* 电脑端首页大图首屏适配 */
+    /* 电脑端通栏横幅 */
+    .cinema-banner,
+    .cinema-banner:not(.cinema-banner-library),
+    .cinema-banner.cinema-banner-library {
+        position: relative !important;
+        left: 50% !important;
+        right: 50% !important;
+        margin-left: -50vw !important;
+        margin-right: -50vw !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        box-sizing: border-box !important;
+    }
+
+    .cinema-banner:not(.cinema-banner-library) {
+        height: clamp(580px, 75vh, 850px) !important;
+        min-height: 580px !important;
+        margin-bottom: 1.5rem !important;
+    }
+
+    .cinema-banner.cinema-banner-library {
+        height: clamp(540px, 68vh, 740px) !important;
+        min-height: 500px !important;
+        margin-top: 0 !important;
+        margin-bottom: 1.5rem !important;
+    }
+
+    .cinema-banner {
+        height: clamp(560px, 72vh, 800px);
+    }
+
+    .cinema-banner:not(.cinema-banner-library) .cinema-content {
+        position: absolute;
+        top: 50px;
+        bottom: 20px;
+        left: 0;
+        width: 50%;
+        max-width: 680px;
+        padding-left: clamp(48px, 5.5vw, 96px);
+        padding-right: 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        z-index: 3;
+        box-sizing: border-box;
+        transition: padding-left 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    /* 电脑端常驻侧边栏开启时：海报内容区智能右移，完全避开侧边栏遮挡 */
+    .page-withFullDrawer .cinema-banner:not(.cinema-banner-library) .cinema-content,
+    .skinBody-withFullDrawer .cinema-banner:not(.cinema-banner-library) .cinema-content,
+    .page-withDockedDrawer .cinema-banner:not(.cinema-banner-library) .cinema-content,
+    .skinBody-withDockedDrawer .cinema-banner:not(.cinema-banner-library) .cinema-content,
+    body:has(.mainDrawer.drawer-docked:not(.mainDrawer-mini)) .cinema-banner:not(.cinema-banner-library) .cinema-content {
+        padding-left: calc(16.5em + clamp(24px, 3vw, 48px)) !important;
+        max-width: calc(680px + 16.5em) !important;
+        transition: padding-left 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+
+    /* 电脑端首页大图：右侧双列立体海报瀑布流（经典阶梯下沉错位） */
+    /* 首页缩略图布局 */
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumbnails {
+        position: absolute !important;
+        right: clamp(48px, 5.5vw, 88px) !important; /* 右侧边距显著加大，留足舒适呼吸感 */
+        left: auto !important;
+        top: calc(50% + 22px) !important; /* 整体垂直位置下移，避开顶栏投屏/搜索/用户/设置按钮 */
+        bottom: auto !important;
+        transform: translateY(-50%) !important;
+        z-index: 5 !important;
+        display: grid !important;
+        grid-template-columns: repeat(2, clamp(66px, 4.6vw, 78px)) !important; /* 适当缩小微调卡片宽高 */
+        grid-gap: clamp(8px, 0.8vw, 12px) !important;
+        align-items: start !important;
+        width: auto !important;
+        max-width: 280px !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 4px !important;
+    }
+
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card {
+        position: relative !important;
+        width: 100% !important;
+        height: auto !important;
+        flex: none !important;
+        aspect-ratio: 2 / 2.92 !important;
+        border-radius: 12px !important;
+        overflow: hidden !important;
+        cursor: pointer !important;
+        background: #181920 !important;
+        border: 2px solid transparent !important;
+        box-shadow: 0 5px 14px rgba(0, 0, 0, 0.65) !important;
+        opacity: 0.78 !important;
+        transition: opacity 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease !important;
+        box-sizing: border-box !important;
+    }
+
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card img,
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card picture {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        object-position: center top !important;
+        display: block !important;
+    }
+
+    /* 经典阶梯错位效果：右列卡片优雅下沉 48px */
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card:nth-child(even) {
+        transform: translateY(48px) !important;
+    }
+
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card:nth-child(even):hover {
+        opacity: 1 !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85) !important;
+        transform: translateY(48px) scale(1.03) !important;
+        z-index: 10 !important;
+    }
+
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card:nth-child(odd):hover {
+        opacity: 1 !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85) !important;
+        transform: scale(1.03) !important;
+        z-index: 10 !important;
+    }
+
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card.active,
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card:nth-child(even).active,
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card:nth-child(odd).active {
+        opacity: 1 !important;
+        border: 2px solid rgba(255, 255, 255, 0.85) !important;
+        box-shadow: 0 0 12px rgba(255, 255, 255, 0.35) !important;
+        z-index: 8 !important;
+    }
+
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-title {
+        display: block !important;
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        font-size: 10.5px !important;
+        font-weight: 600 !important;
+        color: #ffffff !important;
+        text-align: center !important;
+        background: none !important;
+        padding: 10px 4px 3px 4px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        pointer-events: none !important;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
+        z-index: 4 !important;
+    }
+
+    /* 桌面端媒体库大图：满宽通栏 + 右下角单排横向胶片条 */
+    /* 媒体库通栏大图 */
+    .cinema-banner.cinema-banner-library {
+        position: relative !important;
+        left: 50% !important;
+        right: 50% !important;
+        margin-left: -50vw !important;
+        margin-right: -50vw !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        box-sizing: border-box !important;
+        height: clamp(500px, 64vh, 680px) !important;
+        min-height: 480px !important;
+        margin-top: 0 !important;
+        margin-bottom: 1.5rem !important;
+    }
+
+    /* 媒体库大图信息区 */
+    .cinema-banner.cinema-banner-library .cinema-content {
+        position: absolute !important;
+        top: 50px !important;
+        bottom: 30px !important;
+        left: 0 !important;
+        width: 48% !important;
+        max-width: 680px !important;
+        padding-left: clamp(48px, 5.5vw, 96px) !important;
+        padding-right: 20px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        z-index: 5 !important;
+        box-sizing: border-box !important;
+    }
+
+    .cinema-banner.cinema-banner-library .cinema-thumbnails {
+        position: absolute !important;
+        right: clamp(24px, 3.2vw, 55px) !important;
+        bottom: 14px !important; /* 紧贴底部 */
+        top: auto !important;
+        transform: none !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 12px !important;
+        z-index: 6 !important;
+        max-width: 60% !important;
+        overflow: visible !important;
+        padding: 4px !important;
+    }
+
+    .cinema-banner.cinema-banner-library .cinema-thumb-card {
+        position: relative !important;
+        width: 128px !important;
+        height: 72px !important;
+        flex: 0 0 128px !important;
+        aspect-ratio: 16 / 9 !important;
+        border-radius: 7px !important;
+        overflow: hidden !important;
+        cursor: pointer !important;
+        background: #181920 !important;
+        border: 2px solid transparent !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6) !important;
+        opacity: 0.72 !important;
+        transform: none !important;
+        transition: opacity 0.25s ease, transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease !important;
+        box-sizing: border-box !important;
+    }
+
+    .cinema-banner.cinema-banner-library .cinema-thumb-card img,
+    .cinema-banner.cinema-banner-library .cinema-thumb-card picture {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        object-position: center center !important;
+        display: block !important;
+    }
+
+    .cinema-banner.cinema-banner-library .cinema-thumb-card:hover {
+        opacity: 1 !important;
+        transform: scale(1.04) !important;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.8) !important;
+        z-index: 10 !important;
+    }
+
+    .cinema-banner.cinema-banner-library .cinema-thumb-card.active {
+        opacity: 1 !important;
+        border: 2px solid rgba(255, 255, 255, 0.85) !important;
+        box-shadow: 0 0 12px rgba(255, 255, 255, 0.35) !important;
+        transform: scale(1.05) !important;
+        z-index: 8 !important;
+    }
+
+    .cinema-banner.cinema-banner-library .cinema-thumb-title {
+        display: block !important;
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        color: #ffffff !important;
+        text-align: center !important;
+        background: none !important;
+        padding: 10px 4px 4px 4px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        pointer-events: none !important;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9) !important;
+    }
+}
+
+/* 移动端响应式 */
+@media (max-width: 1023px) {
+
+    /* ================================================================
+       模块 04：移动端横幅响应式优化与按钮常驻
+       ================================================================ */
+    /* 移动端全面禁用子元素进场关键帧，确保片名、徽章、立即播放按钮 100% 常驻显现，绝不丢弃内容或闪烁！ */
+    .cinema-slide.active .cinema-logo,
+    .cinema-slide.active .cinema-title,
+    .cinema-slide.active .cinema-overview,
+    .cinema-slide.active .cinema-actions,
+    .cinema-slide.active .cinema-btn-group,
+    .cinema-slide.active .cinema-meta-row,
+    .cinema-slide.active .cinema-tag {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+        filter: none !important;
+        visibility: visible !important;
+    }
+
+    /* 横幅基础高度 */
+    .cinema-banner,
+    .cinema-banner.cinema-banner-library,
+    .cinema-banner:not(.cinema-banner-library) {
+        position: relative !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        height: clamp(480px, 62vh, 560px) !important; /* 手机端海报适度舒适高度，留足空间避免子项重叠 */
+        min-height: 480px !important;
+        max-height: 580px !important;
+        margin-bottom: 0 !important; /* 清除底边距 */
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+        background: transparent !important;
+    }
+
+    /* 移动端遮罩羽化 */
+    .cinema-backdrop-wrap {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        overflow: hidden !important;
+        -webkit-mask-image: linear-gradient(to bottom,
+        #000000 0%,
+        #000000 52%,
+        rgba(0, 0, 0, 0.75) 68%,
+        rgba(0, 0, 0, 0.2) 80%,
+        transparent 92%,
+        transparent 100%) !important;
+        mask-image: linear-gradient(to bottom,
+        #000000 0%,
+        #000000 52%,
+        rgba(0, 0, 0, 0.75) 68%,
+        rgba(0, 0, 0, 0.2) 80%,
+        transparent 92%,
+        transparent 100%) !important;
+    }
+
+    .cinema-backdrop-img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        object-position: center 25% !important;
+    }
+
+    /* 移动端底渐变 */
+    .cinema-backdrop-gradient,
+    .cinema-banner.cinema-banner-library .cinema-backdrop-gradient {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: linear-gradient(0deg,
+        transparent 0%,
+        transparent 16px,
+        rgba(10, 12, 16, 0.35) 45px,
+        rgba(10, 12, 16, 0.75) 110px,
+        transparent 260px),
+        linear-gradient(180deg,
+                rgba(0, 0, 0, 0.65) 0%,
+                transparent 18%) !important;
+    }
+
+    /* 移动端分类大图：独立自适应穿透突破滑动容器限制，保证下方卡片保持 100% 原生左右边距！ */
+    .cinema-banner.cinema-banner-library {
+        margin-left: calc(-3.4% - env(safe-area-inset-left, 0)) !important;
+        margin-right: -3.4% !important;
+        width: calc(100% + 6.8% + env(safe-area-inset-left, 0)) !important;
+        max-width: none !important;
+    }
+
+    /* 移动端内容区位置 */
+    .cinema-content,
+    .cinema-banner:not(.cinema-banner-library) .cinema-content {
+        position: absolute !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: 72px !important;
+        bottom: 94px !important; /* 预留 94px 避开底部胶片条，绝不重叠冲突！ */
+        width: 100% !important;
+        max-width: 100% !important;
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+        z-index: 5 !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-end !important;
+        align-items: flex-start !important;
+        overflow: hidden !important;
+    }
+
+    .cinema-banner.cinema-banner-library .cinema-content {
+        position: absolute !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: 76px !important;
+        bottom: 94px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+        z-index: 5 !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-end !important;
+        align-items: flex-start !important;
+        overflow: hidden !important;
+    }
+
+    .cinema-title-logo-wrap,
+    .cinema-title-logo {
+        max-height: 56px !important;
+    }
+
+    .cinema-genre-badge {
+        font-size: 10px !important;
+        padding: 2px 6px !important;
+    }
+
+    .cinema-overview {
+        display: -webkit-box !important;
+        -webkit-box-orient: vertical !important;
+        -webkit-line-clamp: 2 !important;
+        overflow: hidden !important;
+        max-height: 2.8em !important;
+        margin-bottom: 6px !important;
+        line-height: 1.4 !important;
+    }
+
+    /* 操作按钮栏：适当缩小尺寸，紧凑精致，消除海报切换时的背景闪烁 */
+    .cinema-actions {
+        position: relative !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 8px !important; /* 缩小两个按钮间隙至舒适精巧的 8px */
+        width: 100% !important;
+        margin-top: 6px !important;
+        flex-shrink: 0 !important;
+        z-index: 5 !important;
+    }
+
+    /* 移动端海报切片切换时，操作按钮区域常驻稳定，绝不随切片退场淡出而闪烁！ */
+    .cinema-slide .cinema-actions,
+    .cinema-slide.active .cinema-actions,
+    .cinema-slide.cinema-slide-prev .cinema-actions {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: none !important;
+        transition: none !important;
+    }
+
+    .cinema-btn-play,
+    .cinema-btn-detail {
+        flex-shrink: 0 !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        line-height: 32px !important;
+        border-radius: 16px !important;
+        transition: transform 0.15s ease !important; /* 禁用背景色过渡 */
+    }
+
+    .cinema-btn-play .cinema-icon,
+    .cinema-btn-detail .cinema-icon {
+        width: 14px !important;
+        height: 14px !important;
+        margin-right: 4px !important;
+    }
+
+    .cinema-tag {
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        color: #f5a623 !important;
+        margin-bottom: 4px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.8px !important;
+    }
+
+    .cinema-title {
+        font-size: clamp(21px, 6.2vw, 29px) !important;
+        font-weight: 800 !important;
+        line-height: 1.18 !important;
+        color: #ffffff !important;
+        margin-bottom: 6px !important;
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9) !important;
+    }
+
+    .cinema-meta-row {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        gap: 5px 8px !important;
+        font-size: 11.5px !important;
+        color: rgba(255, 255, 255, 0.85) !important;
+        margin-bottom: 6px !important;
+    }
+
+    .cinema-overview {
+        display: -webkit-box !important;
+        -webkit-line-clamp: 2 !important;
+        -webkit-box-orient: vertical !important;
+        overflow: hidden !important;
+        font-size: 11.5px !important;
+        line-height: 1.45 !important;
+        color: rgba(255, 255, 255, 0.68) !important;
+        margin-top: 2px !important;
+        margin-bottom: 8px !important;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8) !important;
+    }
+
+    /* 移除多余的重复定义 */
+    .cinema-btn-play {
+        display: inline-flex !important;
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-width: unset !important;
+        white-space: nowrap !important;
+        height: 32px !important;
+        padding: 0 13px !important; /* 适当缩小内边距 */
+        font-size: 12px !important; /* 精巧 12px 字号 */
+        font-weight: 700 !important;
+        border-radius: 16px !important;
+        background: #ffffff !important;
+        color: #121316 !important;
+        justify-content: center !important;
+        align-items: center !important;
+        border: none !important;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    .cinema-btn-detail {
+        display: inline-flex !important;
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-width: unset !important;
+        white-space: nowrap !important;
+        height: 32px !important;
+        padding: 0 12px !important; /* 适当缩小内边距 */
+        font-size: 11.5px !important; /* 精巧 11.5px 字号 */
+        font-weight: 600 !important;
+        border-radius: 16px !important;
+        background: rgba(255, 255, 255, 0.18) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        justify-content: center !important;
+        align-items: center !important;
+    }
+
+    /* 移动端单排水平滑动胶片条（底贴 12px，舒展宽敞） */
+    .cinema-thumbnails,
+    .cinema-banner .cinema-thumbnails,
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumbnails,
+    .cinema-banner.cinema-banner-library .cinema-thumbnails {
+        position: absolute !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 12px !important;
+        top: auto !important;
+        transform: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 72px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 0 16px !important;
+        overflow-x: auto !important;
+        scrollbar-width: none !important;
+        -webkit-overflow-scrolling: touch !important;
+        z-index: 6 !important;
+        box-sizing: border-box !important;
+    }
+
+    .cinema-thumbnails::-webkit-scrollbar,
+    .cinema-banner .cinema-thumbnails::-webkit-scrollbar,
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumbnails::-webkit-scrollbar,
+    .cinema-banner.cinema-banner-library .cinema-thumbnails::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    /* 单张胶片卡片：16:9 横版矩形 */
+    .cinema-thumb-card,
+    .cinema-banner .cinema-thumb-card,
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card,
+    .cinema-banner.cinema-banner-library .cinema-thumb-card {
+        position: relative !important;
+        display: block !important;
+        width: 120px !important;
+        height: 68px !important;
+        flex: 0 0 120px !important;
+        aspect-ratio: 16 / 9 !important;
+        border-radius: 7px !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        transform: none !important;
+        opacity: 0.75 !important;
+        background: #181920 !important;
+        border: 2px solid transparent !important;
+    }
+
+    .cinema-thumb-card:nth-child(even),
+    .cinema-thumb-card:nth-child(odd),
+    .cinema-banner .cinema-thumb-card:nth-child(even),
+    .cinema-banner .cinema-thumb-card:nth-child(odd),
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card:nth-child(even),
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card:nth-child(odd),
+    .cinema-banner.cinema-banner-library .cinema-thumb-card:nth-child(even),
+    .cinema-banner.cinema-banner-library .cinema-thumb-card:nth-child(odd) {
+        transform: none !important;
+    }
+
+    .cinema-thumb-card img,
+    .cinema-banner .cinema-thumb-card img,
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card img,
+    .cinema-banner.cinema-banner-library .cinema-thumb-card img,
+    .cinema-thumb-card picture,
+    .cinema-banner .cinema-thumb-card picture,
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card picture,
+    .cinema-banner.cinema-banner-library .cinema-thumb-card picture {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        display: block !important;
+    }
+
+    .cinema-thumb-card.active,
+    .cinema-banner .cinema-thumb-card.active,
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-card.active,
+    .cinema-banner.cinema-banner-library .cinema-thumb-card.active {
+        opacity: 1 !important;
+        border: 2px solid rgba(255, 255, 255, 0.85) !important;
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.3) !important;
+        transform: none !important;
+    }
+
+    .cinema-thumb-title,
+    .cinema-banner .cinema-thumb-title,
+    .cinema-banner:not(.cinema-banner-library) .cinema-thumb-title,
+    .cinema-banner.cinema-banner-library .cinema-thumb-title {
+        display: block !important;
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        font-size: 10.5px !important;
+    }
+
+    /* 移动端 Section 0（“我的媒体”）：消除双重内边距，14px 自然左对齐，紧凑衔接下方“继续观看” */
+    .view:not(.hide) .section0 {
+        position: relative !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin-top: 0.5rem !important; /* 间距控制 */
+        margin-bottom: 0.5rem !important;
+        padding: 0 !important;
+        background: transparent !important;
+        overflow: visible !important;
+        clear: both !important;
+        display: block !important;
+    }
+
+    .view:not(.hide) .section0 .scrollbuttoncontainer {
+        display: none !important;
+    }
+}
+
+/* 继续观看卡片尺寸 */
+[data-section="resume"],
+.resumeSection {
+    --backdrop-cards: 6.2 !important;
+}
+
+[data-section="resume"] .card,
+.resumeSection .card {
+    max-width: 255px !important;
+}
+
+@media (max-width: 1023px) {
+    [data-section="resume"],
+    .resumeSection {
+        --backdrop-cards: 2.4 !important;
+    }
+
+    [data-section="resume"] .card,
+    .resumeSection .card {
+        max-width: none !important;
+    }
+}
+
+/* 开屏进度条 */
+.cinema-loading-progress-track {
+    width: 220px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+    margin-top: 18px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.cinema-loading-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #f5b025, #e5a00d, #ffffff);
+    border-radius: 3px;
+    box-shadow: 0 0 12px rgba(229, 160, 13, 0.95);
+    transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cinema-loading-screen.is-animating .cinema-loading-progress-fill {
+    width: 100% !important;
+}
+
+/* 统一胶囊徽章样式 */
+.cinema-genre-list,
+.cinema-meta-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin-bottom: 8px !important;
+}
+
+.cinema-genre-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    padding: 2.5px 8px !important;
+    border-radius: 4px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    color: #ffffff !important;
+    line-height: 1.3 !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+}
+
+.cinema-size-badge,
+.cinema-ep-badge {
+    background: rgba(0, 209, 178, 0.15) !important;
+    border-color: rgba(0, 209, 178, 0.3) !important;
+    color: #00d1b2 !important;
+}
+
+.cinema-rating-badge {
+    background: rgba(229, 160, 13, 0.15) !important;
+    border-color: rgba(229, 160, 13, 0.3) !important;
+    color: #f5a623 !important;
+}
+
+.cinema-type-badge {
+    background: rgba(255, 255, 255, 0.16) !important;
+    font-weight: 700 !important;
+}
+
+/* ================================================================
+   模块 06：年龄分级彩色胶囊徽章与评分品牌图标
+   ================================================================ */
+/* 1. 年龄分级专用彩色胶囊 */
+.cinema-banner .cinema-rich-rating {
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    padding: 2px 8px !important;
+}
+
+.cinema-banner .cinema-rich-rating.cinema-rating-green {
+    background: rgba(46, 125, 50, 0.45) !important;
+    border-color: rgba(76, 175, 80, 0.6) !important;
+    color: #81c784 !important;
+}
+
+.cinema-banner .cinema-rich-rating.cinema-rating-yellow {
+    background: rgba(198, 146, 20, 0.45) !important;
+    border-color: rgba(255, 193, 7, 0.6) !important;
+    color: #ffd54f !important;
+}
+
+.cinema-banner .cinema-rich-rating.cinema-rating-orange {
+    background: rgba(230, 81, 0, 0.45) !important;
+    border-color: rgba(255, 152, 0, 0.6) !important;
+    color: #ffb74d !important;
+}
+
+.cinema-banner .cinema-rich-rating.cinema-rating-redOrange {
+    background: rgba(211, 47, 47, 0.45) !important;
+    border-color: rgba(244, 67, 54, 0.6) !important;
+    color: #e57373 !important;
+}
+
+.cinema-banner .cinema-rich-rating.cinema-rating-red {
+    background: rgba(139, 0, 0, 0.45) !important;
+    border-color: rgba(204, 34, 34, 0.6) !important;
+    color: #ef5350 !important;
+}
+
+.cinema-banner .cinema-rich-rating.cinema-rating-grey {
+    background: rgba(84, 110, 122, 0.35) !important;
+    border-color: rgba(158, 158, 158, 0.4) !important;
+    color: #cfd8dc !important;
+}
+
+/* 2. 时长徽章 */
+.cinema-banner .cinema-rich-runtime {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    color: #eceff1 !important;
+}
+
+/* 3. 评分品牌图标与徽标 (IMDb / 烂番茄) */
+.cinema-banner .cinema-rich-score {
+    padding: 2px 7px 2px 5px !important;
+    gap: 4px !important;
+}
+
+.cinema-banner .cinema-rich-score-icon {
+    height: 14px !important;
+    width: auto !important;
+    object-fit: contain !important;
+    vertical-align: middle !important;
+}
+
+.cinema-banner .cinema-rich-imdb {
+    background: rgba(245, 197, 24, 0.15) !important;
+    border-color: rgba(245, 197, 24, 0.35) !important;
+    color: #f5c518 !important;
+}
+
+.cinema-banner .cinema-rich-rt.fresh {
+    background: rgba(250, 50, 10, 0.15) !important;
+    border-color: rgba(250, 50, 10, 0.35) !important;
+    color: #ff6b6b !important;
+}
+
+.cinema-banner .cinema-rich-rt.rotten {
+    background: rgba(100, 180, 50, 0.15) !important;
+    border-color: rgba(100, 180, 50, 0.35) !important;
+    color: #a8e063 !important;
+}
+
+/* 4. 音视频规格高规格徽章 */
+.cinema-banner .cinema-rich-spec.spec-res {
+    background: rgba(0, 180, 216, 0.15) !important;
+    border-color: rgba(0, 180, 216, 0.35) !important;
+    color: #00b4d8 !important;
+}
+
+.cinema-banner .cinema-rich-spec.spec-hdr {
+    background: rgba(255, 183, 3, 0.15) !important;
+    border-color: rgba(255, 183, 3, 0.35) !important;
+    color: #ffb703 !important;
+}
+
+.cinema-banner .cinema-rich-spec.spec-audio {
+    background: rgba(157, 78, 221, 0.15) !important;
+    border-color: rgba(157, 78, 221, 0.35) !important;
+    color: #c77dff !important;
+}
+
+
+/* ================================================================
+   模块 07：卡片悬浮光效与聚焦微动效
+   ================================================================ */
+/* 卡片悬浮光效 */
+/* 卡片悬浮光效 (严格排除演职人员卡片，避免污染演职人员正圆头像) */
+.itemsContainer:not(.peopleItemsContainer) div.card.portraitCard .cardBox,
+:not(.peopleSection) > div.itemsContainer > div.card.portraitCard .cardBox,
+div.card.squareCard .cardBox,
+div.card.backdropCard .cardBox,
+div.card.smallBackdropCard .cardBox {
+    /* 【核心】关闭父级感应，防止鼠标在文字区域触发放大 */
+    pointer-events: none;
+}
+
+/* 响应鼠标感应 */
+.itemsContainer:not(.peopleItemsContainer) div.card.portraitCard .cardContent,
+.itemsContainer:not(.peopleItemsContainer) div.card.portraitCard .cardOverlayContainer,
+:not(.peopleSection) > div.itemsContainer > div.card.portraitCard .cardContent,
+:not(.peopleSection) > div.itemsContainer > div.card.portraitCard .cardOverlayContainer,
+div.card.squareCard .cardContent,
+div.card.squareCard .cardOverlayContainer,
+div.card.backdropCard .cardOverlayContainer,
+div.card.smallBackdropCard .cardContent,
+div.card.smallBackdropCard .cardOverlayContainer {
+    pointer-events: auto !important;
+}
+
+/* 触发图片放大 */
+/* 竖向海报 & 正方形卡片 (逻辑相同) */
+/* 竖向海报 & 正方形卡片 (逻辑相同，严格排除演职人员) */
+.itemsContainer:not(.peopleItemsContainer) div.card.portraitCard .cardBox:hover .cardContent,
+:not(.peopleSection) > div.itemsContainer > div.card.portraitCard .cardBox:hover .cardContent,
+div.card.squareCard .cardBox:hover .cardContent {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 3px #00a4dc !important;
+    border-radius: 6px !important;
+    z-index: 10 !important;
+}
+
+/* 横向背景图 (Backdrop) - 排除文字信息卡片 */
+div.card.backdropCard .cardBox:hover .cardContent:not(.mediaStreamPadder),
+div.card.smallBackdropCard .cardBox:hover .cardContent:not(.mediaStreamPadder) {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 3px #00a4dc !important;
+    border-radius: 6px !important;
+    z-index: 10 !important;
+}
+
+/* 按钮层同步放大 */
+/* 竖向 & 正方形 */
+/* 按钮层同步放大 (严格排除演职人员) */
+.itemsContainer:not(.peopleItemsContainer) div.card.portraitCard .cardBox:hover .cardOverlayContainer,
+:not(.peopleSection) > div.itemsContainer > div.card.portraitCard .cardBox:hover .cardOverlayContainer,
+div.card.squareCard .cardBox:hover .cardOverlayContainer {
+    transform: scale(1.05);
+    z-index: 20 !important;
+    border-radius: 6px !important;
+}
+
+/* 横向 */
+div.card.backdropCard .cardBox:hover .cardOverlayContainer,
+div.card.smallBackdropCard .cardBox:hover .cardOverlayContainer {
+    transform: scale(1.05);
+    z-index: 20 !important;
+    border-radius: 6px !important;
+}
+
+/* 动画过渡 */
+div.card .cardContent,
+div.card .cardOverlayContainer {
+    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.25s ease-in-out;
+}
+
+/* 媒体库排序导航栏隐藏 */
+.alphaPicker.alphaPicker-vertical {
+    display: none;
+}
+
+.listTotalRecordCount {
+    display: block !important;
+}
+
+/*【媒体库内】即将播出栏目改为完全显示无需滑动*/
+@media not all and (min-width: 50em) {
+    .upcomingContainer .backdropCard.card-hoverable,
+    .upcomingContainer .backdropCard.button-hoverable {
+        width: 50%;
+    }
+}
+
+.upcomingContainer .itemsContainer {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+/* 节目界面遮罩美化 */
+@media all and (min-width: 50em) {
+    .backgroundContainer.itemBackgroundContainer.itemBackgroundContainer-preventbackdrop.withBackdrop {
+        background: linear-gradient(77deg,
+        rgba(0, 0, 0, 0.7) -20%,
+        rgba(0, 0, 0, 0.6) -50%,
+        rgba(0, 0, 0, 0.3) 100%) !important;
+        opacity: 1;
+    }
+
+    .backdropContainer.backdropContainer-preventbackdrop {
+        transform: scale(1.05);
+        filter: blur(1.8em) saturate(1.3);
+    }
+}
+
+/*【节目界面】背景图片提高遮罩亮度后的简介文字阴影和折叠显示行数*/
+@media all and (min-width: 50em) {
+    .overview-text.readOnlyContent {
+        text-shadow: 0.5px 0.5px 1px rgba(0, 0, 0, 0.91);
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+    }
+
+    .layout-tv.noScrollY .overview-text.readOnlyContent {
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        line-height: 1.46em;
+    }
+}
+
+/*【节目界面】背景图片提高遮罩亮度后的剧集简介文字不透明度*/
+.listItem-overview.listItemBodyText,
+.layout-tv .listItem-overview.listItemBodyText {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+
+/* ==================== 骨架屏与优雅加载过渡 ==================== */
+@keyframes cinemaShimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.cinema-shimmer {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.09) 37%, rgba(255, 255, 255, 0.04) 63%) !important;
+    background-size: 400% 100% !important;
+    animation: cinemaShimmer 1.4s ease infinite !important;
+    border-radius: 6px !important;
+}
+
+/* ================================================================
+   详情页元数据紧凑标签美化规范 (年份、时长、流派、分级等)
+   ================================================================ */
+.detailTextContainer .mediaInfo,
+.detailTextContainer .detail-mediaInfoPrimary,
+.detailTextContainer .mediaInfoPrimary,
+.detailTextContainer .itemDetailsGroup {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    margin-top: 4px !important;
+    margin-bottom: 4px !important;
+    padding: 0 !important;
+}
+
+.detailTextContainer .mediaInfoItem,
+.detailTextContainer .mediaInfoItem a,
+.detailTextContainer .mediaInfoOfficialRating,
+.detailTextContainer a.mediaInfoItem,
+.detailTextContainer .cinema-media-status-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 22px !important;
+    min-height: 22px !important;
+    max-height: 22px !important;
+    line-height: 20px !important;
+    padding: 0 8px !important;
+    box-sizing: border-box !important;
+    border-radius: 4px !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    margin: 0 !important;
+    vertical-align: middle !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: rgba(255, 255, 255, 0.92) !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease !important;
+}
+
+.detailTextContainer .mediaInfoItem:has(a) {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    box-shadow: none !important;
+}
+
+.detailTextContainer a.mediaInfoItem:hover,
+.detailTextContainer .mediaInfoItem a:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-color: rgba(255, 255, 255, 0.38) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px) !important;
+}
+
+.detailTextContainer .mediaInfoOfficialRating,
+.detailTextContainer .mediaInfoItem[data-rating-group],
+.detailTextContainer .mediaInfoItem.mediaInfoOfficialRating {
+    background: rgba(230, 81, 0, 0.28) !important;
+    border-color: rgba(255, 152, 0, 0.5) !important;
+    color: #ffb74d !important;
+}
+
+.detailTextContainer .mediaInfoItem:has(.starRatingContainer) {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+.focusable .mediaInfoItem:last-child {
+    width: auto !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* ================== TMDB Key 未配置极简原生空状态 (无边框、无阴影、完全融合背景) ================== */
+.cinema-key-notice {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 48px 20px !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+}
+
+.cinema-key-notice-icon {
+    font-size: 36px !important;
+    line-height: 1 !important;
+    margin-bottom: 10px !important;
+    opacity: 0.3 !important;
+    filter: grayscale(1) !important;
+}
+
+.cinema-key-notice-title {
+    font-size: 14.5px !important;
+    font-weight: 500 !important;
+    color: rgba(255, 255, 255, 0.55) !important;
+    margin: 0 0 6px 0 !important;
+    letter-spacing: 0.2px !important;
+}
+
+.cinema-key-notice-desc {
+    font-size: 12.5px !important;
+    line-height: 1.5 !important;
+    color: rgba(255, 255, 255, 0.35) !important;
+    margin: 0 !important;
+}
+
+/* ================================================================
+   演职人员正圆头像横滑排版：强制单行横向滚动，绝对禁止折行
+   ================================================================ */
+.peopleSection .itemsContainer,
+.peopleItemsContainer,
+.peopleSection .scrollSlider,
+.peopleSection .emby-scrollbuttons-scrollSlider {
+    flex-wrap: nowrap !important;
+    display: flex !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+}
+
+.peopleSection .card,
+.peopleItemsContainer .card {
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+}
+
+/* 演职人员正圆头像：容器高度严格约束为单行高度 (175px)，彻底防止 Emby 虚拟滚动计算出多行 */
+.peopleSection .itemsContainer,
+.peopleItemsContainer,
+.peopleSection .scrollSlider,
+.peopleSection .emby-scrollbuttons-scrollSlider {
+    height: 175px !important;
+    max-height: 175px !important;
+    min-height: 175px !important;
+    flex-wrap: nowrap !important;
+    display: flex !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+}
+
+.peopleSection .card,
+.peopleItemsContainer .card {
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    height: 170px !important;
+}
+
+/* ================================================================
+   详情页大海报专属：坚决不显示海报下方的评分角标、烂番茄、分级与多余文字
+   ================================================================ */
+
+/* ================================================================
+   详情页大海报专属：仅隐藏左侧海报卡片上的角标，坚决不影响右侧详情元数据 (.detailTextContainer)
+   ================================================================ */
+.detailImageContainerCard .cardMediaInfoItems,
+.detailImageContainerCard .starRatingContainer,
+.detailImageContainerCard .mediaInfoCriticRating,
+.detailImageContainerCard .mediaInfoOfficialRating,
+.detailImageContainerCard .cardText,
+.detailImageContainerCard .cardFooter,
+.detailImageContainer .cardMediaInfoItems,
+.detailImageContainer .starRatingContainer,
+.detailImageContainer .mediaInfoCriticRating,
+.detailImageContainer .mediaInfoOfficialRating,
+.detailImageContainer .cardText {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* 确保右侧元数据标签栏中的评分与番茄指数必定显示 */
+.detailTextContainer .starRatingContainer,
+.detailTextContainer .mediaInfoCriticRating {
+    display: inline-flex !important;
+    visibility: visible !important;
+}
+
+/* ================================================================
+   全站卡片规范：将评分行移出文档流定位在海报左上角，年份与播映期完好保留在海报下方
+   ================================================================ */
+.cardBox > .cardText:has(.cardMediaInfoItems) {
+    position: absolute !important;
+    top: 6px !important;
+    left: 6px !important;
+    z-index: 25 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    border: none !important;
+    background: transparent !important;
+}
+
+.cardBox > .cardText:has(.cardMediaInfoItems) .cardMediaInfoItems {
+    display: inline-flex !important;
+}
+
+.cardBox > .cardText:has(.cardMediaInfoItems) .starRatingContainer {
+    position: static !important;
+}
+
+/* ==============================================================================
+   模块 11：宿主骨架屏 · 加载占位 · 原生动作面板磨砂
+   （原 Emby_Plus.full.css 中宿主专属、精简版缺失的规则，统一归位至此）
+   ============================================================================== */
+.cinema-calendar-hero.is-loading .cinema-calendar-hero-content {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+}
+
+.cinema-hero-skel-title {
+    width: 280px !important;
+    height: 40px !important;
+    border-radius: 8px !important;
+}
+
+.cinema-hero-skel-sub {
+    width: 180px !important;
+    height: 18px !important;
+}
+
+.cinema-hero-skel-chips {
+    display: flex !important;
+    gap: 8px !important;
+}
+
+.cinema-hero-skel-chip {
+    width: 60px !important;
+    height: 24px !important;
+    border-radius: 4px !important;
+}
+
+.cinema-hero-skel-overview {
+    width: 100% !important;
+    max-width: 520px !important;
+    height: 38px !important;
+}
+
+.cinema-hero-skel-btn {
+    width: 110px !important;
+    height: 38px !important;
+    border-radius: 20px !important;
+}
+
+.cinema-skel-name {
+    width: 80% !important;
+    height: 16px !important;
+}
+
+.cinema-skel-meta {
+    width: 55% !important;
+    height: 12px !important;
+}
+
+.actionSheetContent .actionSheetMenuItem:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.actionSheetContent,
+.actionSheet-general,
+.actionsheet-content,
+.dialog-content-actionSheet,
+div[is="emby-actionSheet"] .actionSheetScroller {
+    background: rgba(20, 24, 30, 0.82) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(1.6) !important;
+    backdrop-filter: blur(30px) saturate(1.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7) !important;
+    color: #ffffff !important;
+}
