@@ -393,31 +393,56 @@ async function getSeriesExistingEpisodes(seriesId) {
 
 async function checkMissingEpisodesInfo(item, inLibId) {
     if (!item || !inLibId || item.mediaType === "movie") return null;
-    const epCode = item.epCode;
-    if (!epCode) return null;
+
+    let targetSeason = 1;
+    let targetEpisode = 0;
+    if (typeof item.season_number === "number" && item.season_number > 0) {
+        targetSeason = item.season_number;
+    } else if (typeof item.season === "number" && item.season > 0) {
+        targetSeason = item.season;
+    }
+
+    const epCode = item.epCode || "";
     const m = epCode.match(/(?:S(\d+))?E(\d+)/i);
-    if (!m) return null;
-    const targetSeason = m[1] ? parseInt(m[1], 10) : 1;
-    const targetEpisode = parseInt(m[2], 10);
+    if (m) {
+        if (m[1]) targetSeason = parseInt(m[1], 10);
+        targetEpisode = parseInt(m[2], 10);
+    } else if (typeof item.episode_number === "number" && item.episode_number > 0) {
+        targetEpisode = item.episode_number;
+    } else if (typeof item.episode === "number" && item.episode > 0) {
+        targetEpisode = item.episode;
+    }
+
     if (isNaN(targetEpisode) || targetEpisode <= 0) return null;
 
     const info = await getSeriesExistingEpisodes(inLibId);
-    if (!info || !info.epSet) return null;
+    if (!info || !info.epSet || !info.seasonEpMap) return null;
 
-    const allSeasons = new Set([targetSeason]);
-    for (const s of info.seasonEpMap.keys()) {
-        if (typeof s === "number" && s > 0) allSeasons.add(s);
-    }
+    // 检查媒体库中是否真正存在当前日历更新的这一季（避免仅入库第一季时把第二季误判为已入库）
+    const targetSeasonEpisodes = info.seasonEpMap.get(targetSeason) || new Set();
+    const isCurrentSeasonInLibrary = targetSeasonEpisodes.size > 0;
+
+    const existingSeasons = Array.from(info.seasonEpMap.keys())
+        .filter(s => typeof s === "number" && s > 0 && (info.seasonEpMap.get(s)?.size || 0) > 0)
+        .sort((a, b) => a - b);
+
+    const allSeasons = new Set([targetSeason, ...existingSeasons]);
 
     const seasonsList = [];
     let totalMissing = 0;
 
     Array.from(allSeasons).sort((a, b) => a - b).forEach((sNum) => {
         const existingInSeason = info.seasonEpMap.get(sNum) || new Set();
-        const limit = (sNum === targetSeason) ? targetEpisode : Math.max(0, ...Array.from(existingInSeason));
+        const maxInSeason = existingInSeason.size > 0 ? Math.max(...Array.from(existingInSeason)) : 0;
+        const limit = (sNum === targetSeason) ? Math.max(targetEpisode, maxInSeason) : maxInSeason;
         const missingInThisSeason = [];
         for (let ep = 1; ep <= limit; ep++) {
-            if (!existingInSeason.has(ep) && !info.epSet.has(`S${sNum}E${ep}`) && !info.epSet.has(`E${ep}`)) {
+            // 严格按当前季核算集数：只有在仅有单季且为第1季时才允许无前缀 E${ep} 回退，防止不同季之间串集误判
+            const allowFallbackNoSeason = (info.seasonEpMap.size <= 1 && sNum === 1);
+            const exists = existingInSeason.has(ep) ||
+                info.epSet.has(`S${sNum}E${ep}`) ||
+                (allowFallbackNoSeason && info.epSet.has(`E${ep}`));
+            if (!exists) {
                 missingInThisSeason.push(ep);
             }
         }
@@ -432,16 +457,16 @@ async function checkMissingEpisodesInfo(item, inLibId) {
         }
     });
 
-    if (totalMissing === 0) {
-        return { isMissing: false, totalMissingCount: 0, seasons: [], targetEpisode, targetSeason };
-    }
+    const isMissing = totalMissing > 0 || !isCurrentSeasonInLibrary;
 
     return {
-        isMissing: true,
+        isMissing,
         totalMissingCount: totalMissing,
         seasons: seasonsList,
         targetEpisode,
-        targetSeason
+        targetSeason,
+        isCurrentSeasonInLibrary,
+        existingSeasons
     };
 }
 
@@ -3940,14 +3965,23 @@ EmbyPlus.defineAddon("calendar-charts-tab", "追剧日历与热门榜单", null,
                 if (!it) return;
                 const inLibId = checkInLibrary(it);
                 if (inLibId) {
-                    // 检查是否缺少集数（包括历史缺集与当天更新集）
+                    // 如果尚未拉取最新集数信息，先异步拉取以确保季数和集数判定准确
+                    if (!it.epCode && it.mediaType !== "movie") {
+                        const epInfo = await this.fetchTvEpisodeInfo(it.id);
+                        if (epInfo && epInfo.epCode) {
+                            it.epCode = epInfo.epCode;
+                            if (epInfo.epName) it.epName = epInfo.epName;
+                        }
+                    }
+
+                    // 检查是否缺少集数（包括历史缺集与当前季更新集）
                     const missingInfo = await checkMissingEpisodesInfo(it, inLibId);
-                    if (missingInfo && missingInfo.isMissing) {
-                        // 缺少集数：打开弹窗展示完整缺集列表、转存与一键进入剧集
-                        showDetailDialog(it, inLibId, missingInfo);
-                    } else {
-                        // 完整入库无缺集：直达原生详情页
+                    // 仅当明确确认媒体库已完整入库当前更新季且无任何缺集时，才直达原生详情页
+                    if (missingInfo && !missingInfo.isMissing && missingInfo.isCurrentSeasonInLibrary !== false) {
                         CinemaHome.showItem(inLibId);
+                    } else {
+                        // 缺少集数、当前季未入库（如仅入库第1季而更新第2季）或未确认完整入库时，打开详情弹窗展示缺集、转存/订阅
+                        showDetailDialog(it, inLibId, missingInfo);
                     }
                 } else {
                     showDetailDialog(it, null, null);
@@ -3988,8 +4022,16 @@ EmbyPlus.defineAddon("calendar-charts-tab", "追剧日历与热门榜单", null,
                         }
                         if (missingInfo && missingInfo.isMissing) {
                             badge.className = "cinema-card-inlibrary-badge is-missing";
-                            badge.textContent = `缺${missingInfo.totalMissingCount}集`;
-                            badge.title = `已入库，但缺少 ${missingInfo.totalMissingCount} 集未更新`;
+                            if (missingInfo.isCurrentSeasonInLibrary === false) {
+                                badge.textContent = `缺S${missingInfo.targetSeason}`;
+                                const seasonsText = missingInfo.existingSeasons && missingInfo.existingSeasons.length > 0
+                                    ? `第 ${missingInfo.existingSeasons.join("、")} 季`
+                                    : "其他季";
+                                badge.title = `已入库${seasonsText}，但第 ${missingInfo.targetSeason} 季未入库（缺 ${missingInfo.totalMissingCount} 集）`;
+                            } else {
+                                badge.textContent = `缺${missingInfo.totalMissingCount}集`;
+                                badge.title = `已入库，但缺少 ${missingInfo.totalMissingCount} 集未更新`;
+                            }
                         } else {
                             badge.className = "cinema-card-inlibrary-badge";
                             badge.textContent = "已入库";
@@ -4938,7 +4980,7 @@ EmbyPlus.defineAddon("moviepilot", "详情页 · MoviePilot 联动（订阅 / �
 									<span class="cinema-dialog-chip">${typeName}</span>
 									${item.network ? `<span class="cinema-dialog-chip">${escapeHtml(item.network)}</span>` : ""}
 									<a class="cinema-dialog-chip cinema-dialog-chip-tmdbid" href="${tmdbUrl}" target="_blank" rel="noopener noreferrer" title="在 TMDB 查看原始页面" style="cursor:pointer;text-decoration:none;">TMDB #${tmdbId}</a>
-									${inLibId ? (missingInfo && missingInfo.isMissing ? `<span class="cinema-dialog-chip cinema-dialog-chip-gold" style="color:#f59e0b!important;border-color:rgba(245,158,11,0.35)!important;background:rgba(245,158,11,0.15)!important;">已入库 (共缺 ${missingInfo.totalMissingCount} 集)</span>` : `<span class="cinema-dialog-chip" style="color:#10b981;border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.1);">✓ 完整入库</span>`) : ""}
+									${inLibId ? (missingInfo && missingInfo.isMissing ? `<span class="cinema-dialog-chip cinema-dialog-chip-gold" style="color:#f59e0b!important;border-color:rgba(245,158,11,0.35)!important;background:rgba(245,158,11,0.15)!important;">${missingInfo.isCurrentSeasonInLibrary === false ? `第 ${missingInfo.targetSeason} 季未入库 (缺 ${missingInfo.totalMissingCount} 集)` : `已入库 (共缺 ${missingInfo.totalMissingCount} 集)`}</span>` : `<span class="cinema-dialog-chip" style="color:#10b981;border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.1);">✓ 完整入库</span>`) : ""}
                                     ${mpConfig.isConfigured ? '<span class="cinema-dialog-chip cinema-sub-status-chip is-loading" role="status">查询订阅中...</span>' : ""}
 								</div>
 							</div>

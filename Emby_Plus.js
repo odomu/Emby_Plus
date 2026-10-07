@@ -365,31 +365,56 @@ async function getSeriesExistingEpisodes(seriesId) {
 
 async function checkMissingEpisodesInfo(item, inLibId) {
     if (!item || !inLibId || item.mediaType === "movie") return null;
-    const epCode = item.epCode;
-    if (!epCode) return null;
+
+    let targetSeason = 1;
+    let targetEpisode = 0;
+    if (typeof item.season_number === "number" && item.season_number > 0) {
+        targetSeason = item.season_number;
+    } else if (typeof item.season === "number" && item.season > 0) {
+        targetSeason = item.season;
+    }
+
+    const epCode = item.epCode || "";
     const m = epCode.match(/(?:S(\d+))?E(\d+)/i);
-    if (!m) return null;
-    const targetSeason = m[1] ? parseInt(m[1], 10) : 1;
-    const targetEpisode = parseInt(m[2], 10);
+    if (m) {
+        if (m[1]) targetSeason = parseInt(m[1], 10);
+        targetEpisode = parseInt(m[2], 10);
+    } else if (typeof item.episode_number === "number" && item.episode_number > 0) {
+        targetEpisode = item.episode_number;
+    } else if (typeof item.episode === "number" && item.episode > 0) {
+        targetEpisode = item.episode;
+    }
+
     if (isNaN(targetEpisode) || targetEpisode <= 0) return null;
 
     const info = await getSeriesExistingEpisodes(inLibId);
-    if (!info || !info.epSet) return null;
+    if (!info || !info.epSet || !info.seasonEpMap) return null;
 
-    const allSeasons = new Set([targetSeason]);
-    for (const s of info.seasonEpMap.keys()) {
-        if (typeof s === "number" && s > 0) allSeasons.add(s);
-    }
+    // 检查媒体库中是否真正存在当前日历更新的这一季（避免仅入库第一季时把第二季误判为已入库）
+    const targetSeasonEpisodes = info.seasonEpMap.get(targetSeason) || new Set();
+    const isCurrentSeasonInLibrary = targetSeasonEpisodes.size > 0;
+
+    const existingSeasons = Array.from(info.seasonEpMap.keys())
+        .filter(s => typeof s === "number" && s > 0 && (info.seasonEpMap.get(s)?.size || 0) > 0)
+        .sort((a, b) => a - b);
+
+    const allSeasons = new Set([targetSeason, ...existingSeasons]);
 
     const seasonsList = [];
     let totalMissing = 0;
 
     Array.from(allSeasons).sort((a, b) => a - b).forEach((sNum) => {
         const existingInSeason = info.seasonEpMap.get(sNum) || new Set();
-        const limit = (sNum === targetSeason) ? targetEpisode : Math.max(0, ...Array.from(existingInSeason));
+        const maxInSeason = existingInSeason.size > 0 ? Math.max(...Array.from(existingInSeason)) : 0;
+        const limit = (sNum === targetSeason) ? Math.max(targetEpisode, maxInSeason) : maxInSeason;
         const missingInThisSeason = [];
         for (let ep = 1; ep <= limit; ep++) {
-            if (!existingInSeason.has(ep) && !info.epSet.has(`S${sNum}E${ep}`) && !info.epSet.has(`E${ep}`)) {
+            // 严格按当前季核算集数：只有在仅有单季且为第1季时才允许无前缀 E${ep} 回退，防止不同季之间串集误判
+            const allowFallbackNoSeason = (info.seasonEpMap.size <= 1 && sNum === 1);
+            const exists = existingInSeason.has(ep) ||
+                info.epSet.has(`S${sNum}E${ep}`) ||
+                (allowFallbackNoSeason && info.epSet.has(`E${ep}`));
+            if (!exists) {
                 missingInThisSeason.push(ep);
             }
         }
@@ -404,16 +429,16 @@ async function checkMissingEpisodesInfo(item, inLibId) {
         }
     });
 
-    if (totalMissing === 0) {
-        return { isMissing: false, totalMissingCount: 0, seasons: [], targetEpisode, targetSeason };
-    }
+    const isMissing = totalMissing > 0 || !isCurrentSeasonInLibrary;
 
     return {
-        isMissing: true,
+        isMissing,
         totalMissingCount: totalMissing,
         seasons: seasonsList,
         targetEpisode,
-        targetSeason
+        targetSeason,
+        isCurrentSeasonInLibrary,
+        existingSeasons
     };
 }
 

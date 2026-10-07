@@ -718,14 +718,23 @@ EmbyPlus.defineAddon("calendar-charts-tab", "追剧日历与热门榜单", {
                 if (!it) return;
                 const inLibId = checkInLibrary(it);
                 if (inLibId) {
-                    // 检查是否缺少集数（包括历史缺集与当天更新集）
+                    // 如果尚未拉取最新集数信息，先异步拉取以确保季数和集数判定准确
+                    if (!it.epCode && it.mediaType !== "movie") {
+                        const epInfo = await this.fetchTvEpisodeInfo(it.id);
+                        if (epInfo && epInfo.epCode) {
+                            it.epCode = epInfo.epCode;
+                            if (epInfo.epName) it.epName = epInfo.epName;
+                        }
+                    }
+
+                    // 检查是否缺少集数（包括历史缺集与当前季更新集）
                     const missingInfo = await checkMissingEpisodesInfo(it, inLibId);
-                    if (missingInfo && missingInfo.isMissing) {
-                        // 缺少集数：打开弹窗展示完整缺集列表、转存与一键进入剧集
-                        showDetailDialog(it, inLibId, missingInfo);
-                    } else {
-                        // 完整入库无缺集：直达原生详情页
+                    // 仅当明确确认媒体库已完整入库当前更新季且无任何缺集时，才直达原生详情页
+                    if (missingInfo && !missingInfo.isMissing && missingInfo.isCurrentSeasonInLibrary !== false) {
                         CinemaHome.showItem(inLibId);
+                    } else {
+                        // 缺少集数、当前季未入库（如仅入库第1季而更新第2季）或未确认完整入库时，打开详情弹窗展示缺集、转存/订阅
+                        showDetailDialog(it, inLibId, missingInfo);
                     }
                 } else {
                     showDetailDialog(it, null, null);
@@ -766,8 +775,16 @@ EmbyPlus.defineAddon("calendar-charts-tab", "追剧日历与热门榜单", {
                         }
                         if (missingInfo && missingInfo.isMissing) {
                             badge.className = "cinema-card-inlibrary-badge is-missing";
-                            badge.textContent = `缺${missingInfo.totalMissingCount}集`;
-                            badge.title = `已入库，但缺少 ${missingInfo.totalMissingCount} 集未更新`;
+                            if (missingInfo.isCurrentSeasonInLibrary === false) {
+                                badge.textContent = `缺S${missingInfo.targetSeason}`;
+                                const seasonsText = missingInfo.existingSeasons && missingInfo.existingSeasons.length > 0
+                                    ? `第 ${missingInfo.existingSeasons.join("、")} 季`
+                                    : "其他季";
+                                badge.title = `已入库${seasonsText}，但第 ${missingInfo.targetSeason} 季未入库（缺 ${missingInfo.totalMissingCount} 集）`;
+                            } else {
+                                badge.textContent = `缺${missingInfo.totalMissingCount}集`;
+                                badge.title = `已入库，但缺少 ${missingInfo.totalMissingCount} 集未更新`;
+                            }
                         } else {
                             badge.className = "cinema-card-inlibrary-badge";
                             badge.textContent = "已入库";

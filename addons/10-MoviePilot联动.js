@@ -503,7 +503,7 @@ EmbyPlus.defineAddon("moviepilot", "详情页 · MoviePilot 联动（订阅 / �
 									<span class="cinema-dialog-chip">${typeName}</span>
 									${item.network ? `<span class="cinema-dialog-chip">${escapeHtml(item.network)}</span>` : ""}
 									<a class="cinema-dialog-chip cinema-dialog-chip-tmdbid" href="${tmdbUrl}" target="_blank" rel="noopener noreferrer" title="在 TMDB 查看原始页面" style="cursor:pointer;text-decoration:none;">TMDB #${tmdbId}</a>
-									${inLibId ? (missingInfo && missingInfo.isMissing ? `<span class="cinema-dialog-chip cinema-dialog-chip-gold" style="color:#f59e0b!important;border-color:rgba(245,158,11,0.35)!important;background:rgba(245,158,11,0.15)!important;">已入库 (共缺 ${missingInfo.totalMissingCount} 集)</span>` : `<span class="cinema-dialog-chip" style="color:#10b981;border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.1);">✓ 完整入库</span>`) : ""}
+									${inLibId ? (missingInfo && missingInfo.isMissing ? `<span class="cinema-dialog-chip cinema-dialog-chip-gold" style="color:#f59e0b!important;border-color:rgba(245,158,11,0.35)!important;background:rgba(245,158,11,0.15)!important;">${missingInfo.isCurrentSeasonInLibrary === false ? `第 ${missingInfo.targetSeason} 季未入库 (缺 ${missingInfo.totalMissingCount} 集)` : `已入库 (共缺 ${missingInfo.totalMissingCount} 集)`}</span>` : `<span class="cinema-dialog-chip" style="color:#10b981;border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.1);">✓ 完整入库</span>`) : ""}
                                     ${mpConfig.isConfigured ? '<span class="cinema-dialog-chip cinema-sub-status-chip is-loading" role="status">查询订阅中...</span>' : ""}
 								</div>
 							</div>
