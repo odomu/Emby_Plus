@@ -39,6 +39,7 @@ JSON_SNAPSHOT = os.path.join(SCRIPT_DIR, "plugin-config.snapshot.json")
 LITE_JS = os.path.join(ROOT_DIR, "Emby_Plus.js")
 LITE_CSS = os.path.join(ROOT_DIR, "Emby_Plus.css")
 ADDONS_DIR = os.path.join(ROOT_DIR, "addons")
+EXTRA_DIR = os.path.join(ROOT_DIR, "extra")
 
 
 def get_headers(token: str) -> dict:
@@ -145,7 +146,10 @@ def push_local_changes(server_url: str, token: str, plugin_id: str, allow_new: b
         for f in sorted(os.listdir(ADDONS_DIR)):
             if f.endswith(".js") and not f.startswith("_"):
                 local_js_files[os.path.splitext(f)[0].strip()] = os.path.join(ADDONS_DIR, f)
-
+    if os.path.isdir(EXTRA_DIR):
+        for f in sorted(os.listdir(EXTRA_DIR)):
+            if f.endswith(".js") and not f.startswith("_"):
+                local_js_files[os.path.splitext(f)[0].strip()] = os.path.join(EXTRA_DIR, f)
     # 1.1 更新已有 JS
     for name, item in remote_js_map.items():
         if name in local_js_files:

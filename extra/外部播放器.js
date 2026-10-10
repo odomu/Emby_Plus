@@ -227,6 +227,19 @@
                     box-sizing: border-box !important;
                 }
 
+                /* 隐形透明桥梁：彻底消除按钮与菜单之间 6px 间隙导致鼠标滑入时 hover 丢失的问题 */
+                .extPlayerMenu::before {
+                    content: "" !important;
+                    position: absolute !important;
+                    top: -12px !important;
+                    left: 0 !important;
+                    right: 0 !important;
+                    height: 12px !important;
+                    background: transparent !important;
+                    display: block !important;
+                    pointer-events: auto !important;
+                }
+
                 .extPlayerDropdownWrap:hover .extPlayerMenu,
                 .extPlayerDropdownWrap.is-active .extPlayerMenu {
                     opacity: 1;
@@ -437,17 +450,37 @@
                 };
             }
         });
+        // Mouse hover with safe debounce buffer for desktop
+        let hoverTimer = null;
+        if (wrap) {
+            wrap.addEventListener("mouseenter", function () {
+                clearTimeout(hoverTimer);
+                hoverTimer = null;
+                wrap.classList.add("is-active");
+            });
+
+            wrap.addEventListener("mouseleave", function () {
+                clearTimeout(hoverTimer);
+                hoverTimer = setTimeout(function () {
+                    wrap.classList.remove("is-active");
+                }, 220);
+            });
+        }
 
         // Toggle dropdown on mobile touch or button click
         if (triggerBtn) {
             triggerBtn.onclick = function (e) {
                 e.stopPropagation();
+                clearTimeout(hoverTimer);
+                hoverTimer = null;
                 if (wrap) wrap.classList.toggle("is-active");
             };
         }
 
         // Close dropdown when clicking outside
         document.addEventListener("click", function (e) {
+            clearTimeout(hoverTimer);
+            hoverTimer = null;
             if (wrap && !wrap.contains(e.target)) {
                 wrap.classList.remove("is-active");
             }
@@ -460,9 +493,34 @@
         return iconsExt;
     }
 
+    function getActiveViewElement(selector) {
+        const wrap = document.getElementById("extPlayerDropdownWrap");
+        const activeContainer = wrap ? wrap.closest(".view, .itemDetailPage, [data-role='page'], div[is='emby-scroller']") : null;
+        let el = activeContainer ? activeContainer.querySelector(selector) : null;
+        if (!el) {
+            const activeView = document.querySelector(".view:not(.hide)") ||
+                               document.querySelector(".itemDetailPage:not(.hide)") ||
+                               document;
+            el = activeView.querySelector(selector);
+        }
+        if (!el) {
+            el = document.querySelector(selector);
+        }
+        return el;
+    }
+
+    function getCurrentItemId() {
+        let m = /[?&]id=([A-Za-z0-9]+)/.exec(window.location.hash) || /[?&]id=([A-Za-z0-9]+)/.exec(window.location.search);
+        if (m) return m[1];
+        const activeView = document.querySelector(".view:not(.hide)") || document;
+        const idAttr = activeView.getAttribute("data-id") || activeView.getAttribute("data-itemid");
+        if (idAttr) return idAttr;
+        return "";
+    }
+
     async function getItemInfo () {
         let userId = ApiClient._serverInfo.UserId;
-        let itemId = /\?id=([A-Za-z0-9]+)/.exec(window.location.hash)[1];
+        let itemId = getCurrentItemId();
         let response = await ApiClient.getItem(userId, itemId);
         // 继续播放当前剧集的下一集
         if (response.Type == "Series") {
@@ -505,45 +563,60 @@
     }
 
     function getSubPath (mediaSource) {
-        let selectSubtitles = document.querySelector(selectors.selectSubtitles);
+        let selectSubtitles = getActiveViewElement("select.selectSubtitles");
         let subTitlePath = '';
+        let val = selectSubtitles ? selectSubtitles.value : null;
+        if (!val && selectSubtitles && selectSubtitles.selectedIndex >= 0 && selectSubtitles.options && selectSubtitles.options[selectSubtitles.selectedIndex]) {
+            val = selectSubtitles.options[selectSubtitles.selectedIndex].value;
+        }
         //返回选中的外挂字幕
-        if (selectSubtitles && selectSubtitles.value > 0) {
-            let SubIndex = mediaSource.MediaStreams.findIndex(m => m.Index == selectSubtitles.value && m.IsExternal);
+        if (val && parseInt(val, 10) > 0) {
+            let SubIndex = (mediaSource.MediaStreams || []).findIndex(m => m.Index == val && m.IsExternal);
             if (SubIndex > -1) {
                 let subtitleCodec = mediaSource.MediaStreams[SubIndex].Codec;
-                subTitlePath = `/${mediaSource.Id}/Subtitles/${selectSubtitles.value}/Stream.${subtitleCodec}`;
+                subTitlePath = `/${mediaSource.Id}/Subtitles/${val}/Stream.${subtitleCodec}`;
             }
         }
         else {
             //默认尝试返回第一个外挂中文字幕
-            let chiSubIndex = mediaSource.MediaStreams.findIndex(m => m.Language == "chi" && m.IsExternal);
+            let chiSubIndex = (mediaSource.MediaStreams || []).findIndex(m => m.Language == "chi" && m.IsExternal);
             if (chiSubIndex > -1) {
                 let subtitleCodec = mediaSource.MediaStreams[chiSubIndex].Codec;
                 subTitlePath = `/${mediaSource.Id}/Subtitles/${chiSubIndex}/Stream.${subtitleCodec}`;
             } else {
                 //尝试返回第一个外挂字幕
-                let externalSubIndex = mediaSource.MediaStreams.findIndex(m => m.IsExternal);
+                let externalSubIndex = (mediaSource.MediaStreams || []).findIndex(m => m.IsExternal);
                 if (externalSubIndex > -1) {
                     let subtitleCodec = mediaSource.MediaStreams[externalSubIndex].Codec;
                     subTitlePath = `/${mediaSource.Id}/Subtitles/${externalSubIndex}/Stream.${subtitleCodec}`;
                 }
             }
-
         }
         return subTitlePath;
     }
 
     async function getEmbyMediaInfo () {
         let itemInfo = await getItemInfo();
-        let mediaSourceId = itemInfo.MediaSources[0].Id;
-        let selectSource = document.querySelector(selectors.selectSource);
-        if (selectSource && selectSource.value.length > 0) {
-            mediaSourceId = selectSource.value;
+        let mediaSourceId = (itemInfo.MediaSources && itemInfo.MediaSources[0] && itemInfo.MediaSources[0].Id) || "";
+
+        // 优先从当前活跃视图精准获取用户实际切换选中的版本下拉框
+        let selectSource = getActiveViewElement("select.selectSource");
+        if (selectSource) {
+            let val = selectSource.value;
+            if (!val && selectSource.selectedIndex >= 0 && selectSource.options && selectSource.options[selectSource.selectedIndex]) {
+                val = selectSource.options[selectSource.selectedIndex].value;
+            }
+            if (val && String(val).trim().length > 0) {
+                mediaSourceId = String(val).trim();
+            }
         }
-        // let selectAudio = document.querySelector("div[is='emby-scroller']:not(.hide) select.selectAudio:not([disabled])");
+
         const accessToken = ApiClient.accessToken();
-        let mediaSource = itemInfo.MediaSources.find(m => m.Id == mediaSourceId);
+        let mediaSource = (itemInfo.MediaSources || []).find(m => String(m.Id) === String(mediaSourceId)) || (itemInfo.MediaSources && itemInfo.MediaSources[0]);
+        if (!mediaSource) {
+            throw new Error("未找到可播放的媒体源");
+        }
+        mediaSourceId = mediaSource.Id;
         let uri = isEmby ? "/emby/videos" : "/Items";
         let baseUrl = `${ApiClient._serverAddress}${uri}/${itemInfo.Id}`;
         let subPath = getSubPath(mediaSource);
@@ -583,7 +656,7 @@
         let title = mediaSource.IsInfiniteStream
             ? mediaSource.Name
             : decodeURIComponent(mediaSource.Path.replace(fileNameReg, ""));
-        let externalSubs = mediaSource.MediaStreams.filter(m => m.IsExternal == true);
+        let externalSubs = (mediaSource.MediaStreams || []).filter(m => m.IsExternal == true);
         let subs = ''; // 要求是android.net.uri[] ?
         let subs_name = '';
         let subs_filename = '';
@@ -746,6 +819,9 @@
             itemsToPlay = [itemInfo];
         }
 
+        let activeSelectSource = getActiveViewElement("select.selectSource");
+        let activeSelectedSourceId = activeSelectSource ? (activeSelectSource.value || (activeSelectSource.selectedIndex >= 0 && activeSelectSource.options[activeSelectSource.selectedIndex]?.value)) : "";
+
         // 格式化每一集的清晰标题与直接串流链接
         let playlist = itemsToPlay.map(item => {
             let epTitle = "";
@@ -758,10 +834,17 @@
                 epTitle = item.Name;
             }
 
-            let mediaSource = item.MediaSources && item.MediaSources[0];
+            let mediaSource = (activeSelectedSourceId && String(item.Id) === String(itemInfo.Id))
+                ? ((item.MediaSources || []).find(m => String(m.Id) === String(activeSelectedSourceId)) || (item.MediaSources && item.MediaSources[0]))
+                : (item.MediaSources && item.MediaSources[0]);
             let mediaSourceId = mediaSource ? mediaSource.Id : item.Id;
             let container = mediaSource && mediaSource.Container ? mediaSource.Container : "mkv";
-            let streamUrl = `${serverAddress}/emby/videos/${item.Id}/stream.${container}?api_key=${accessToken}&Static=true&MediaSourceId=${mediaSourceId}&DeviceId=${deviceId}`;
+            let streamUrl = "";
+            if (mediaSource && mediaSource.Path && mediaSource.Path.startsWith("http") && localStorage.getItem(lsKeys.strmDirect) === "1") {
+                streamUrl = decodeURIComponent(mediaSource.Path);
+            } else {
+                streamUrl = `${serverAddress}/emby/videos/${item.Id}/stream.${container}?api_key=${accessToken}&Static=true&MediaSourceId=${mediaSourceId}&DeviceId=${deviceId}`;
+            }
 
             return {
                 id: item.Id,
@@ -785,28 +868,30 @@
         };
     }
 
-    // MPV：直接直链唤醒播放器（绝不触发浏览器下载，零剪贴板篡改，秒点秒开）
+    // MPV：直接直链唤醒播放器（支持当前选中的版本、STRM 直链及外挂字幕）
     async function embyMPV () {
-        let info = await getPlaylistInfo();
-        let current = info.currentItem;
+        const mediaInfo = await getEmbyMediaInfo();
+        const currentStreamUrl = mediaInfo.streamUrl;
+        const currentTitle = (mediaInfo.intent && mediaInfo.intent.title) || document.title || "video";
+        const currentSubUrl = mediaInfo.subUrl || "";
 
         // 标准 URL-Safe Base64 编码直链与标题
-        let streamUrl64 = btoa(unescape(encodeURIComponent(current.streamUrl)))
+        let streamUrl64 = btoa(unescape(encodeURIComponent(currentStreamUrl)))
             .replace(/\//g, "_").replace(/\+/g, "-").replace(/\=/g, "");
 
-        let title64 = btoa(unescape(encodeURIComponent(current.title)))
+        let title64 = btoa(unescape(encodeURIComponent(currentTitle)))
             .replace(/\//g, "_").replace(/\+/g, "-").replace(/\=/g, "");
 
         let subParam = "";
-        if (current.subUrl && current.subUrl.length > 0) {
-            let subUrl64 = btoa(unescape(encodeURIComponent(current.subUrl)))
+        if (currentSubUrl && currentSubUrl.length > 0) {
+            let subUrl64 = btoa(unescape(encodeURIComponent(currentSubUrl)))
                 .replace(/\//g, "_").replace(/\+/g, "-").replace(/\=/g, "");
             subParam = "&subfile=" + subUrl64;
         }
 
         let MPVUrl = `mpv://play/${streamUrl64}/?v_title=${title64}${subParam}`;
         if (OS.isIOS() || OS.isAndroid()) {
-            MPVUrl = `mpv://${encodeURI(current.streamUrl)}`;
+            MPVUrl = `mpv://${encodeURI(currentStreamUrl)}`;
         }
 
         console.log("正在唤醒 MPV: ", MPVUrl);

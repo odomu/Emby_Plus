@@ -827,18 +827,17 @@ div.listItem-autoactive.itemAction.listItemCursor.listItem-hoverable.listItem-la
 
 /*【节目界面】版本、视频、音频、字幕信息自动换行和对齐样式*/
 @media all and (min-width: 80em) {
-
-    .noScrollY .trackSelections,
-    .selectContainer .selectSource .selectVideoContainer .selectAudioContainer .selectSubtitlesContainer {
-        width: 24em;
+    .noScrollY .trackSelections {
+        width: 100%;
     }
 
-    .noScrollY,
-    .layout-tv .trackSelections,
-    .selectContainer .selectSource .selectVideoContainer .selectAudioContainer .selectSubtitlesContainer {
+    .noScrollY .trackSelections .detailTrackSelect {
+        max-width: 24em;
+    }
+
+    .layout-tv .trackSelections {
         width: auto;
     }
-
 }
 
 /*【节目界面】播放器控件按钮添加底色背景样式*/

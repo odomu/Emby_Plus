@@ -387,7 +387,8 @@ EmbyPlus.defineAddon("tmdb-reviews", "TMDB 精选影评", {
 .emby-reviews-section.collapsed .emby-reviews-expand-icon {
     transform: rotate(-90deg) !important;
 }
-.emby-reviews-section.collapsed .emby-reviews-items-container {
+.emby-reviews-section.collapsed .emby-reviews-items-container,
+.emby-reviews-section.collapsed .emby-reviews-pagination {
     display: none !important;
 }
 .emby-reviews-items-container {

@@ -207,8 +207,17 @@ EmbyPlus.defineAddon("player-beauty", "播放器美化（控制台 / 进度条 /
         flex-direction: row !important;
         align-items: center !important;
         width: auto !important;
-        max-width: none !important;
+        max-width: 100% !important;
         margin: 0 !important;
+        flex: 0 1 auto !important;
+    }
+
+    .trackSelections .selectSourceContainer .detailTrackSelect,
+    .trackSelections .selectSourceContainer select.selectSource {
+        max-width: 22em !important;
+        width: auto !important;
+        flex-grow: 0 !important;
+        text-overflow: ellipsis !important;
     }
 
     .trackSelections .selectSubtitlesContainer:not(.hide) {
