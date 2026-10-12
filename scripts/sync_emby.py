@@ -38,9 +38,10 @@ JSON_SNAPSHOT = os.path.join(SCRIPT_DIR, "plugin-config.snapshot.json")
 # Emby_Plus 布局：精简版 JS/CSS 在根目录，功能组件在 addons/
 LITE_JS = os.path.join(ROOT_DIR, "Emby_Plus.js")
 LITE_CSS = os.path.join(ROOT_DIR, "Emby_Plus.css")
+FULL_JS = os.path.join(ROOT_DIR, "Emby_Plus.full.js")
+FULL_CSS = os.path.join(ROOT_DIR, "Emby_Plus.full.css")
 ADDONS_DIR = os.path.join(ROOT_DIR, "addons")
 EXTRA_DIR = os.path.join(ROOT_DIR, "extra")
-
 
 def get_headers(token: str) -> dict:
     return {
@@ -122,16 +123,17 @@ def is_auto_updated(item: dict) -> bool:
     return str(item.get("autoUpdate", "")).strip().lower() in ("true", "1", "yes", "on")
 
 
-def push_local_changes(server_url: str, token: str, plugin_id: str, allow_new: bool = False, dry_run: bool = False):
+def push_local_changes(server_url: str, token: str, plugin_id: str, allow_new: bool = False, dry_run: bool = False, full_mode: bool = False):
     """
-    读取本地拆分的文件，合并到配置中并推送服务端。
+    读取本地拆分或 Full 一体化文件，合并到配置中并推送服务端。
     默认规则：
       - 仅更新远程服务端已存在的模块条目。
       - 远程不存在的文件默认跳过，提示需要传入 --allow-new 才能新增。
+      - 若指定 full_mode：自动将 Emby_Plus 替换为 Full 双文件，并将各分体 Addon 置为 off 停用防冲突。
     """
-    print(f"[*] 正在从服务器 {server_url} 读取当前基础配置...")
+    mode_desc = "Full 一体化全量模式" if full_mode else "模块化 Addon 模式"
+    print(f"[*] 正在从服务器 {server_url} 读取当前基础配置 (模式: {mode_desc})...")
     cfg = fetch_remote_config(server_url, token, plugin_id)
-
     changed_items = []
     skipped_new_items = []
     skipped_auto_items = []
@@ -140,31 +142,57 @@ def push_local_changes(server_url: str, token: str, plugin_id: str, allow_new: b
     # 1. 扫描 JS 模块
     remote_js_map = {item.get("name", "").strip(): item for item in cfg.get("customjs", []) if item.get("name")}
     local_js_files = {}
-    if os.path.isfile(LITE_JS):
-        local_js_files["Emby_Plus"] = LITE_JS
+    addon_names = set()
     if os.path.isdir(ADDONS_DIR):
         for f in sorted(os.listdir(ADDONS_DIR)):
             if f.endswith(".js") and not f.startswith("_"):
-                local_js_files[os.path.splitext(f)[0].strip()] = os.path.join(ADDONS_DIR, f)
+                addon_name = os.path.splitext(f)[0].strip()
+                addon_names.add(addon_name)
+                if not full_mode:
+                    local_js_files[addon_name] = os.path.join(ADDONS_DIR, f)
+
+    if full_mode:
+        if os.path.isfile(FULL_JS):
+            local_js_files["Emby_Plus"] = FULL_JS
+    else:
+        if os.path.isfile(LITE_JS):
+            local_js_files["Emby_Plus"] = LITE_JS
+
     if os.path.isdir(EXTRA_DIR):
         for f in sorted(os.listdir(EXTRA_DIR)):
             if f.endswith(".js") and not f.startswith("_"):
                 local_js_files[os.path.splitext(f)[0].strip()] = os.path.join(EXTRA_DIR, f)
-    # 1.1 更新已有 JS
+
+    # 1.1 Full 模式下彻底移除远程残留的分体 Addon 条目
+    if full_mode:
+        kept_js = []
+        for item in cfg.get("customjs", []):
+            name = item.get("name", "").strip()
+            if name in addon_names:
+                changed_items.append((f"删除分体 JS: {name} (已整合入 Full)", 1, 0))
+            else:
+                kept_js.append(item)
+        cfg["customjs"] = kept_js
+        remote_js_map = {item.get("name", "").strip(): item for item in kept_js if item.get("name")}
+
+    # 1.2 更新已有 JS
     for name, item in remote_js_map.items():
+        if full_mode and name in addon_names:
+            continue
+
         if name in local_js_files:
             if is_auto_updated(item):
                 skipped_auto_items.append(f"自动更新模块 JS: {name}")
                 continue
             with open(local_js_files[name], "r", encoding="utf-8") as f:
                 local_content = f.read()
+            if full_mode and name == "Emby_Plus" and item.get("state") != "forced_on":
+                item["state"] = "forced_on"
             if local_content != item.get("content", ""):
                 old_len = len(item.get("content", ""))
                 new_len = len(local_content)
                 item["content"] = local_content
-                changed_items.append((f"更新 JS: {name}", old_len, new_len))
-
-    # 1.2 检查远程未收录的本地 JS 文件
+                changed_items.append((f"更新 JS: {name}{' (Full全量版)' if full_mode and name == 'Emby_Plus' else ''}", old_len, new_len))
     for name, file_path in local_js_files.items():
         if name not in remote_js_map:
             with open(file_path, "r", encoding="utf-8") as f:
@@ -187,8 +215,12 @@ def push_local_changes(server_url: str, token: str, plugin_id: str, allow_new: b
     # 2. 扫描 CSS 模块
     remote_css_map = {item.get("name", "").strip(): item for item in cfg.get("customcss", []) if item.get("name")}
     local_css_files = {}
-    if os.path.isfile(LITE_CSS):
-        local_css_files["Emby_Plus"] = LITE_CSS
+    if full_mode:
+        if os.path.isfile(FULL_CSS):
+            local_css_files["Emby_Plus"] = FULL_CSS
+    else:
+        if os.path.isfile(LITE_CSS):
+            local_css_files["Emby_Plus"] = LITE_CSS
 
     # 2.1 更新已有 CSS
     for name, item in remote_css_map.items():
@@ -198,12 +230,13 @@ def push_local_changes(server_url: str, token: str, plugin_id: str, allow_new: b
                 continue
             with open(local_css_files[name], "r", encoding="utf-8") as f:
                 local_content = f.read()
+            if full_mode and name == "Emby_Plus" and item.get("state") != "forced_on":
+                item["state"] = "forced_on"
             if local_content != item.get("content", ""):
                 old_len = len(item.get("content", ""))
                 new_len = len(local_content)
                 item["content"] = local_content
-                changed_items.append((f"更新 CSS: {name}", old_len, new_len))
-
+                changed_items.append((f"更新 CSS: {name}{' (Full全量版)' if full_mode and name == 'Emby_Plus' else ''}", old_len, new_len))
     # 2.2 检查远程未收录的本地 CSS 文件
     for name, file_path in local_css_files.items():
         if name not in remote_css_map:
@@ -271,6 +304,7 @@ def main():
     parser.add_argument("--server", default=DEFAULT_SERVER_URL, help="Emby 服务器地址（默认取环境变量 EMBY_URL）")
     parser.add_argument("--token", default=DEFAULT_TOKEN, help="管理员 API Token（默认取环境变量 EMBY_TOKEN）")
     parser.add_argument("--plugin-id", default=DEFAULT_PLUGIN_ID, help="CustomCssJS 插件 ID（默认取环境变量 EMBY_CUSTOMCSSJS_PLUGIN_ID）")
+    parser.add_argument("--full", action="store_true", help="Full 一体化全量模式：将 Emby_Plus 替换为 Full 双文件并自动停用分体组件")
     parser.add_argument("--allow-new", action="store_true", help="允许向远程新增本地多出的模块条目（默认只更新远程已有项）")
     parser.add_argument("--pull", action="store_true", help="反向拉取：从服务端下载最新配置覆盖本地")
     parser.add_argument("--dry-run", action="store_true", help="空跑检查差异，不向服务器发送写操作")
@@ -281,11 +315,10 @@ def main():
         if args.pull:
             pull_and_export(args.server, args.token, args.plugin_id)
         else:
-            push_local_changes(args.server, args.token, args.plugin_id, allow_new=args.allow_new, dry_run=args.dry_run)
+            push_local_changes(args.server, args.token, args.plugin_id, allow_new=args.allow_new, dry_run=args.dry_run, full_mode=args.full)
     except Exception as e:
         print(f"\n[ERROR] 运行出错: {e}")
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()
