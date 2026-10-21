@@ -194,6 +194,17 @@ class DomList {
         return this;
     }
 
+    prepend(content) {
+        this.elements.forEach(el => {
+            if (typeof content === "string") {
+                el.insertAdjacentHTML("afterbegin", content);
+            } else if (content && content.nodeType) {
+                el.insertBefore(content, el.firstChild);
+            }
+        });
+        return this;
+    }
+
     before(content) {
         this.elements.forEach(el => {
             if (typeof content === "string") {
@@ -1071,6 +1082,8 @@ class CinemaHome {
     static rotationDuration = CINEMA_CONFIG.rotationDuration || 5000;
     static loadingStartTime = 0;
     static currentScope = null;
+    /* 本轮首页横幅是否已尝试完成（成功或失败），用于阻止加载动画反复重建 */
+    static homeBannerSettled = false;
     static coverOptions = {type: "Backdrop", maxWidth: 2560, quality: 88, adjustForPixelRatio: false};
     static thumbOptions = {type: "Primary", maxWidth: 400, quality: 82, adjustForPixelRatio: false};
     static _detailItemPromises = new Map();
@@ -1101,6 +1114,8 @@ class CinemaHome {
             // 只有离开首页（去往非 home 视图）时才清理加载动画；在首页期间保留，交由 safeDismissLoading 平滑淡出
             if (path && path !== "/home" && type !== "home") {
                 $(".cinema-loading-screen, .misty-loading, .app-splash-container, .app-splash").remove();
+                // 离开首页后重置，保证下次回到首页仍会重新尝试挂载横幅
+                this.homeBannerSettled = false;
             }
         });
     }
@@ -1183,6 +1198,15 @@ class CinemaHome {
         this.pauseAutoPlay();
     }
 
+    /* 首页版块容器：4.8 的 .homeSectionsContainer 是 .tabContent 的子节点，
+       4.10 起该 class 直接加在 .tabContent 自身，因此两种结构都要兼容 */
+    static getHomeSections() {
+        const tab = $(".view-home-home:not(.hide) .tabContent.is-active[data-index='0']");
+        if (!tab.length) return new DomList([]);
+        if (tab.filter(".homeSectionsContainer").length) return tab;
+        return tab.find(".homeSectionsContainer");
+    }
+
     /* 首页：幂等挂载，已存在则只补齐自动轮播，绝不重建 DOM */
     static watchHomePage() {
         if (!this.isHomeTabActive()) {
@@ -1190,10 +1214,12 @@ class CinemaHome {
             return this.pauseAutoPlay();
         }
         const homeView = $(".view-home-home:not(.hide) .tabContent.is-active[data-index='0']");
-        if (!homeView.length || !homeView.find(".homeSectionsContainer").length) return;
+        if (!homeView.length || !this.getHomeSections().length) return;
         if (homeView.find(".cinema-banner").length === 0) {
+            /* 已有初始化在进行中，或本轮已失败：不再重复挂载加载屏，避免开屏动画死循环 */
+            if (this.flag !== 0 || this.homeBannerSettled) return;
             this.initLoading();
-            if (this.flag === 0) this.init("home", null);
+            this.init("home", null);
             return;
         }
         this.currentScope = "home";
@@ -1410,7 +1436,10 @@ class CinemaHome {
         } catch (err) {
             console.error("CinemaHome init error", err);
         } finally {
-            if (scope === "home") await this.safeDismissLoading();
+            if (scope === "home") {
+                this.homeBannerSettled = true;
+                await this.safeDismissLoading();
+            }
             this.flag = 0;
         }
     }
@@ -1706,9 +1735,17 @@ class CinemaHome {
             slider.find(".itemsViewSettingsContainer").before(bannerHtml);
             return true;
         }
-        const homeSections = activeView.find(".tabContent.is-active[data-index='0'] .homeSectionsContainer");
-        homeSections.closest(".scrollSlider").addClass("has-cinema-banner");
-        homeSections.before(bannerHtml);
+        const homeSections = this.getHomeSections();
+        if (!homeSections.length) return false;
+        /* 4.10：.homeSectionsContainer 本身就是滚动容器，真正的 .scrollSlider 在其内部 */
+        const innerSlider = homeSections.find(".scrollSlider").first();
+        const slider = innerSlider.length ? innerSlider : homeSections.closest(".scrollSlider");
+        if (slider.length) {
+            slider.addClass("has-cinema-banner");
+            slider.first().prepend(bannerHtml);
+        } else {
+            homeSections.before(bannerHtml);
+        }
         return true;
     }
 
